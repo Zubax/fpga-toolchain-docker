@@ -5,7 +5,7 @@ into a single Ubuntu-based container image. Built primarily around the YosysHQ
 flow with an ECP5 focus, but usable for any open-source-supported FPGA family
 that Yosys / nextpnr cover.
 
-Published to **`ghcr.io/zubax/fpga-toolchain`**. The image is public; no
+Published to **`ghcr.io/zubax/zubax-fpga-toolchain`**. The image is public; no
 authentication is required to pull.
 
 ## What's inside
@@ -26,6 +26,7 @@ Base: `ubuntu:26.04`.
 | FuseSoC              | PyPI          | `fusesoc` |
 | cocotb (+ bus/test)  | PyPI          | `cocotb`, `cocotb-bus`, `cocotb-test` |
 | edalize              | PyPI          | `edalize` |
+| Scientific Python    | PyPI          | `numpy`, `scipy`, `sympy`, `matplotlib`, `plotly` |
 | Python tooling       | PyPI          | `nox`, `pytest`, `mypy`, `ruff`, `black` |
 
 See [`Dockerfile`](./Dockerfile) for the authoritative list and pinned refs.
@@ -33,15 +34,15 @@ See [`Dockerfile`](./Dockerfile) for the authoritative list and pinned refs.
 ## Pull
 
 ```sh
-docker pull ghcr.io/zubax/fpga-toolchain:latest
+docker pull ghcr.io/zubax/zubax-fpga-toolchain:latest
 ```
 
 For reproducible CI, pin to a specific tag or digest rather than `latest`:
 
 ```sh
-docker pull ghcr.io/zubax/fpga-toolchain:2026-05-14
+docker pull ghcr.io/zubax/zubax-fpga-toolchain:2026-05-14
 # or by content digest
-docker pull ghcr.io/zubax/fpga-toolchain@sha256:<digest>
+docker pull ghcr.io/zubax/zubax-fpga-toolchain@sha256:<digest>
 ```
 
 Available tags:
@@ -57,7 +58,7 @@ Available tags:
 Interactive shell with the current directory mounted at `/work`:
 
 ```sh
-docker run --rm -it -v "$PWD":/work -w /work ghcr.io/zubax/fpga-toolchain
+docker run --rm -it -v "$PWD":/work -w /work ghcr.io/zubax/zubax-fpga-toolchain
 ```
 
 Or use the included [`run.sh`](./run.sh) helper, which adds X11 forwarding for
@@ -67,7 +68,7 @@ non-interactive contexts (CI):
 ```sh
 ./run.sh                              # interactive shell
 ./run.sh yosys -V                     # one-shot command
-IMAGE=ghcr.io/zubax/fpga-toolchain ./run.sh make verify
+IMAGE=ghcr.io/zubax/zubax-fpga-toolchain ./run.sh make verify
 ```
 
 The container runs as the default `ubuntu` user (UID/GID 1000) with
@@ -81,7 +82,7 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/zubax/fpga-toolchain:latest
+      image: ghcr.io/zubax/zubax-fpga-toolchain:latest
     steps:
       - uses: actions/checkout@v4
       - run: make verify
@@ -90,13 +91,13 @@ jobs:
 ## Building locally
 
 ```sh
-docker build -t fpga-toolchain .
+docker build -t zubax-fpga-toolchain .
 ```
 
 Override pinned refs via build-args if needed:
 
 ```sh
-docker build --build-arg YOSYS_REF=v0.66 -t fpga-toolchain .
+docker build --build-arg YOSYS_REF=v0.66 -t zubax-fpga-toolchain .
 ```
 
 Full build takes 30–60 min on 8 cores (Yosys and nextpnr dominate). The

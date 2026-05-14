@@ -9,7 +9,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: zubax/fpga-toolchain
+  IMAGE_NAME: zubax/zubax-fpga-toolchain
 
 jobs:
   build-publish:

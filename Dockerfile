@@ -62,6 +62,7 @@ RUN COCOTB_IGNORE_PYTHON_REQUIRES=1 pip3 install --no-cache-dir \
         fusesoc \
         cocotb cocotb-bus cocotb-test \
         edalize \
+        numpy scipy sympy matplotlib plotly \
         nox pytest mypy ruff black
 
 # ---------------------------------------------------------------------------
