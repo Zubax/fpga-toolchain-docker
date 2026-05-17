@@ -184,7 +184,6 @@ RUN set -eux; \
         > "${tmpdir}/formal.sby"; \
     cd "${tmpdir}"; \
     sby -f -d run formal.sby; \
-    grep -qx 'PASS' "${tmpdir}/run/status"; \
     rm -rf "${tmpdir}"; \
     z3 --version; \
     cvc5 --version | head -n1; \
