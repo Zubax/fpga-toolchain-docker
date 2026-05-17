@@ -8,7 +8,7 @@
 #   docker build -t zubax-fpga-toolchain .
 #
 # Versions are pinned via ARG defaults below. To rebuild against newer refs:
-#   docker build --build-arg YOSYS_REF=v0.66 -t zubax-fpga-toolchain .
+#   docker build --build-arg YOSYS_REF=v0.66 --build-arg YICES2_REF=yices-2.7.0 -t zubax-fpga-toolchain .
 #
 # Run:
 #   docker run --rm -it -v "$PWD":/work -w /work zubax-fpga-toolchain
@@ -16,9 +16,10 @@
 ARG UBUNTU_VERSION=26.04
 FROM ubuntu:${UBUNTU_VERSION}
 
-# Pinned to latest published releases as of 2026-05-13.
+# Pinned to latest published releases as of 2026-05-17.
 ARG YOSYS_REF=v0.65
 ARG NEXTPNR_REF=nextpnr-0.10
+ARG YICES2_REF=yices-2.7.0
 # prjtrellis hasn't tagged a release since 1.4 (2023), but its main branch is the
 # only branch nextpnr-0.10 will build against. Pin to a recent main commit.
 ARG PRJTRELLIS_REF=56bb17047cd8b062f784de8666ceb3f90f77f77a
@@ -36,9 +37,9 @@ LABEL org.opencontainers.image.description="Open-source FPGA synthesis, P&R and 
 # ---------------------------------------------------------------------------
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates curl wget gnupg sudo locales tzdata \
-        git make pkg-config \
+        git make pkg-config autoconf gperf \
         build-essential clang cmake bison flex libfl-dev gawk \
-        tcl-dev libreadline-dev libffi-dev zlib1g-dev \
+        tcl-dev libreadline-dev libffi-dev zlib1g-dev libgmp-dev \
         libboost-all-dev libeigen3-dev \
         python3 python3-dev python3-pip python3-setuptools \
         iverilog verilator gtkwave \
@@ -62,6 +63,7 @@ RUN COCOTB_IGNORE_PYTHON_REQUIRES=1 pip3 install --no-cache-dir \
         fusesoc \
         cocotb cocotb-bus cocotb-test \
         edalize \
+        click \
         numpy scipy sympy matplotlib plotly \
         nox pytest mypy ruff black
 
@@ -89,6 +91,20 @@ RUN git clone --recurse-submodules https://github.com/YosysHQ/yosys.git /tmp/yos
     && make -j"$(nproc)" PREFIX=/usr/local \
     && make install PREFIX=/usr/local \
     && rm -rf /tmp/yosys
+
+# ---------------------------------------------------------------------------
+# Yices 2 (latest published GitHub release).
+# ---------------------------------------------------------------------------
+RUN set -eux; \
+    curl -fsSL "https://github.com/SRI-CSL/yices2/archive/refs/tags/${YICES2_REF}.tar.gz" -o /tmp/yices2.tar.gz; \
+    mkdir -p /tmp/yices2; \
+    tar -C /tmp/yices2 --strip-components=1 -xzf /tmp/yices2.tar.gz; \
+    cd /tmp/yices2; \
+    autoconf; \
+    ./configure --prefix=/usr/local; \
+    make -j"$(nproc)"; \
+    make install; \
+    rm -rf /tmp/yices2 /tmp/yices2.tar.gz
 
 # ---------------------------------------------------------------------------
 # nextpnr with ECP5 backend. Reads chipdb from the prjtrellis install above.
@@ -137,12 +153,39 @@ RUN set -eux; \
 # ---------------------------------------------------------------------------
 RUN set -eux; \
     yosys -V; \
+    printf '(set-logic QF_UF)\n(check-sat)\n' | yices-smt2 | grep -qx 'sat'; \
     nextpnr-ecp5 --version; \
     ecppack --help > /dev/null; \
     iverilog -V 2>&1 | head -n1; \
     verilator --version; \
     verible-verilog-lint --version | head -n1; \
-    sby --help > /dev/null; \
+    tmpdir="$(mktemp -d)"; \
+    printf '%s\n' \
+        'module top(input logic [3:0] a, input logic [3:0] b);' \
+        '    always @* begin' \
+        '        assert ((a ^ b) == (b ^ a));' \
+        '    end' \
+        'endmodule' \
+        > "${tmpdir}/formal.sv"; \
+    printf '%s\n' \
+        '[options]' \
+        'mode prove' \
+        'depth 1' \
+        '' \
+        '[engines]' \
+        'smtbmc z3' \
+        '' \
+        '[script]' \
+        'read -formal formal.sv' \
+        'prep -top top' \
+        '' \
+        '[files]' \
+        'formal.sv' \
+        > "${tmpdir}/formal.sby"; \
+    cd "${tmpdir}"; \
+    sby -f -d run formal.sby; \
+    grep -qx 'PASS' "${tmpdir}/run/status"; \
+    rm -rf "${tmpdir}"; \
     z3 --version; \
     cvc5 --version | head -n1; \
     boolector --version | head -n1; \
