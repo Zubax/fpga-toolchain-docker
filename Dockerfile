@@ -137,6 +137,10 @@ RUN git clone --recurse-submodules https://github.com/f4pga/prjxray.git /tmp/prj
     && cd /tmp/prjxray \
     && git checkout "${PRJXRAY_REF}" \
     && git submodule update --init --recursive \
+    # GCC 15 is stricter about transitive includes; prjxray uses uint8_t in
+    # memory_mapped_file.h without an explicit <cstdint>. Patch upstream's
+    # suggested fix in.
+    && sed -i '/#include <absl\/types\/span.h>/a #include <cstdint>' lib/include/prjxray/memory_mapped_file.h \
     # prjxray's bundled gflags/yaml-cpp submodules still declare CMake < 3.5
     # compatibility, which modern CMake refuses outright; the policy override
     # is the documented escape hatch.
