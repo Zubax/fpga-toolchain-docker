@@ -167,10 +167,14 @@ RUN git clone --recurse-submodules https://github.com/gatecat/nextpnr-xilinx.git
     && cd /tmp/nextpnr-xilinx \
     && git checkout "${NEXTPNR_XILINX_REF}" \
     && git submodule update --init --recursive \
-    # CMake 4.x's legacy FindBoost module no longer maps individual Boost 1.90
-    # components correctly. Force the CMake-config code path supplied by the
-    # Boost package itself, which knows what's header-only and what isn't.
+    # CMake 4.x's legacy FindBoost module no longer maps Boost 1.90 components
+    # correctly; force the CMake-config code path supplied by Boost itself.
+    # Also drop the 'system' component: Boost.System has been header-only
+    # since 1.69 and Ubuntu 26.04 no longer ships libboost-system-dev, so the
+    # request fails even though the headers (which is all the code actually
+    # uses) are present via libboost-dev.
     && sed -i 's/find_package(Boost REQUIRED COMPONENTS/find_package(Boost CONFIG REQUIRED COMPONENTS/' CMakeLists.txt \
+    && sed -i 's/set(boost_libs filesystem program_options iostreams system)/set(boost_libs filesystem program_options iostreams)/' CMakeLists.txt \
     && cmake -S . -B build \
              -DARCH=xilinx \
              -DBUILD_GUI=OFF \
