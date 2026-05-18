@@ -53,7 +53,7 @@ jobs:
             type=semver,pattern={{major}}
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
-            org.opencontainers.image.description=Open-source FPGA synthesis, P&R, and verification toolchain (Yosys, nextpnr-ecp5, prjtrellis, Verilator, Icarus, SymbiYosys, cocotb, FuseSoC, Verible).
+            org.opencontainers.image.description=Open-source FPGA synthesis, P&R, and verification toolchain (Yosys, nextpnr-ecp5, nextpnr-xilinx, prjtrellis, prjxray, Verilator, Icarus, SymbiYosys, cocotb, FuseSoC, Verible, openFPGALoader).
             org.opencontainers.image.licenses=MIT
 
       - name: Build and push

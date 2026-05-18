@@ -27,11 +27,15 @@ ARG PRJTRELLIS_REF=56bb17047cd8b062f784de8666ceb3f90f77f77a
 ARG SBY_REF=f57802a16613f013e84e024df50fc3f0ea74f88b
 ARG VERIBLE_VERSION=v0.0-4053-g89d4d98a
 ARG BITWUZLA_VERSION=0.9.0
+# nextpnr-xilinx and prjxray have no tagged releases; pin to recent main commits.
+ARG NEXTPNR_XILINX_REF=8f178fc6a6d4dfbc57bef66c3ccff34d558047d5
+ARG PRJXRAY_REF=c9f02d8576042325425824647ab5555b1bc77833
+ARG OPENFPGALOADER_REF=v1.1.1
 
 ARG DEBIAN_FRONTEND=noninteractive
 
 LABEL org.opencontainers.image.title="zubax-fpga-toolchain"
-LABEL org.opencontainers.image.description="Open-source FPGA synthesis, P&R and verification toolchain (Yosys, nextpnr-ecp5, prjtrellis, Verilator, Icarus, SymbiYosys, cocotb, FuseSoC, Verible)."
+LABEL org.opencontainers.image.description="Open-source FPGA synthesis, P&R and verification toolchain (Yosys, nextpnr-ecp5, nextpnr-xilinx, prjtrellis, prjxray, Verilator, Icarus, SymbiYosys, cocotb, FuseSoC, Verible, openFPGALoader)."
 
 # ---------------------------------------------------------------------------
 # System packages
@@ -45,6 +49,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         python3 python3-dev python3-pip python3-setuptools \
         iverilog verilator gtkwave \
         z3 cvc5 boolector \
+        libftdi1-dev libhidapi-dev libudev-dev \
         less vim nano file tree htop graphviz xdot \
     && locale-gen en_US.UTF-8 \
     && apt-get clean \
@@ -124,6 +129,61 @@ RUN git clone --recurse-submodules https://github.com/YosysHQ/nextpnr.git /tmp/n
     && rm -rf /tmp/nextpnr
 
 # ---------------------------------------------------------------------------
+# prjxray: Xilinx 7-series bitstream tools (xc7frames2bit, xc7patch, ...).
+# Vivado is only required to regenerate the fuzz database, not to build the
+# C++ tools, so this builds standalone inside the container.
+# ---------------------------------------------------------------------------
+RUN git clone --recurse-submodules https://github.com/f4pga/prjxray.git /tmp/prjxray \
+    && cd /tmp/prjxray \
+    && git checkout "${PRJXRAY_REF}" \
+    && git submodule update --init --recursive \
+    && cmake -S . -B build \
+             -DCMAKE_INSTALL_PREFIX=/usr/local \
+             -DCMAKE_BUILD_TYPE=Release \
+    && cmake --build build -j"$(nproc)" \
+    && cmake --install build \
+    && rm -rf /tmp/prjxray
+
+# ---------------------------------------------------------------------------
+# nextpnr-xilinx: P&R for Xilinx 7-series (Artix-7, Kintex-7, Zynq-7). Lives in
+# a separate fork from upstream nextpnr. Chipdbs are per-part and large, so
+# they are not bundled; users generate them at first use via the bbaexport.py
+# script shipped under /opt/nextpnr-xilinx/xilinx/python against a prjxray-db
+# checkout for their target part.
+# ---------------------------------------------------------------------------
+RUN git clone --recurse-submodules https://github.com/gatecat/nextpnr-xilinx.git /tmp/nextpnr-xilinx \
+    && cd /tmp/nextpnr-xilinx \
+    && git checkout "${NEXTPNR_XILINX_REF}" \
+    && git submodule update --init --recursive \
+    && cmake -S . -B build \
+             -DARCH=xilinx \
+             -DBUILD_GUI=OFF \
+             -DBUILD_TESTS=OFF \
+             -DCMAKE_INSTALL_PREFIX=/usr/local \
+             -DCMAKE_BUILD_TYPE=Release \
+    && cmake --build build -j"$(nproc)" \
+    && cmake --install build \
+    # Keep the python/ tree around so users can run bbaexport.py to generate
+    # chipdbs against a prjxray-db checkout for whichever 7-series part they target.
+    && mkdir -p /opt/nextpnr-xilinx \
+    && cp -a xilinx /opt/nextpnr-xilinx/ \
+    && rm -rf /tmp/nextpnr-xilinx
+
+# ---------------------------------------------------------------------------
+# openFPGALoader: vendor-neutral programmer/loader (FTDI/JTAG/USB-Blaster/...)
+# for ECP5, Xilinx 7-series, ICE40, Gowin, etc.
+# ---------------------------------------------------------------------------
+RUN git clone https://github.com/trabucayre/openFPGALoader.git /tmp/openFPGALoader \
+    && cd /tmp/openFPGALoader \
+    && git checkout "${OPENFPGALOADER_REF}" \
+    && cmake -S . -B build \
+             -DCMAKE_INSTALL_PREFIX=/usr/local \
+             -DCMAKE_BUILD_TYPE=Release \
+    && cmake --build build -j"$(nproc)" \
+    && cmake --install build \
+    && rm -rf /tmp/openFPGALoader
+
+# ---------------------------------------------------------------------------
 # SymbiYosys (sby): formal verification driver around Yosys + solvers.
 # ---------------------------------------------------------------------------
 RUN git clone https://github.com/YosysHQ/sby.git /tmp/sby \
@@ -173,6 +233,12 @@ RUN set -eux; \
     printf '(set-logic QF_UF)\n(check-sat)\n' | yices-smt2 | grep -qx 'sat'; \
     nextpnr-ecp5 --version; \
     ecppack --help > /dev/null; \
+    nextpnr-xilinx --version; \
+    command -v xc7frames2bit; \
+    command -v xc7patch; \
+    command -v bitread; \
+    test -f /opt/nextpnr-xilinx/xilinx/python/bbaexport.py; \
+    openFPGALoader --Version; \
     iverilog -V 2>&1 | head -n1; \
     verilator --version; \
     verible-verilog-lint --version | head -n1; \
