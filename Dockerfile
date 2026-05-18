@@ -137,7 +137,11 @@ RUN git clone --recurse-submodules https://github.com/f4pga/prjxray.git /tmp/prj
     && cd /tmp/prjxray \
     && git checkout "${PRJXRAY_REF}" \
     && git submodule update --init --recursive \
+    # prjxray's bundled gflags/yaml-cpp submodules still declare CMake < 3.5
+    # compatibility, which modern CMake refuses outright; the policy override
+    # is the documented escape hatch.
     && cmake -S . -B build \
+             -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
              -DCMAKE_INSTALL_PREFIX=/usr/local \
              -DCMAKE_BUILD_TYPE=Release \
     && cmake --build build -j"$(nproc)" \
