@@ -141,6 +141,10 @@ RUN git clone --recurse-submodules https://github.com/f4pga/prjxray.git /tmp/prj
     # memory_mapped_file.h without an explicit <cstdint>. Patch upstream's
     # suggested fix in.
     && sed -i '/#include <absl\/types\/span.h>/a #include <cstdint>' lib/include/prjxray/memory_mapped_file.h \
+    # Drop -Werror: GCC 15 raises a new free-nonheap-object warning inside
+    # libstdc++'s vector destructor when used from bitread.cc, which is a
+    # false positive (or at least one we can't fix upstream from here).
+    && sed -i 's/-Werror//g' CMakeLists.txt \
     # prjxray's bundled gflags/yaml-cpp submodules still declare CMake < 3.5
     # compatibility, which modern CMake refuses outright; the policy override
     # is the documented escape hatch.
