@@ -13,12 +13,13 @@ authentication is required to pull.
 - nextpnr (ECP5)
 - prjtrellis / ecppack
 - SymbiYosys (`sby`)
+- Yices 2
 - Verible
 - Icarus Verilog
 - Verilator
 - edalize
 - GTKWave
-- SMT solvers: `z3`, `cvc5`, `boolector`
+- SMT solvers: `z3`, `cvc5`, `boolector`, `yices-smt2`
 - FuseSoC
 - cocotb (+ bus/test): `cocotb`, `cocotb-bus`, `cocotb-test`
 - Scientific Python: `numpy`, `scipy`, `sympy`, `matplotlib`, `plotly`
@@ -82,7 +83,7 @@ docker build -t zubax-fpga-toolchain .
 Override pinned refs via build-args if needed:
 
 ```sh
-docker build --build-arg YOSYS_REF=v0.66 -t zubax-fpga-toolchain .
+docker build --build-arg YOSYS_REF=v0.66 --build-arg YICES2_REF=yices-2.7.0 -t zubax-fpga-toolchain .
 ```
 
 Full build takes 30–60 min on 8 cores (Yosys and nextpnr dominate).
