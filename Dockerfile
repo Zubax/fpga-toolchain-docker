@@ -173,8 +173,12 @@ RUN git clone --recurse-submodules https://github.com/gatecat/nextpnr-xilinx.git
     # since 1.69 and Ubuntu 26.04 no longer ships libboost-system-dev, so the
     # request fails even though the headers (which is all the code actually
     # uses) are present via libboost-dev.
-    && sed -i 's/find_package(Boost REQUIRED COMPONENTS/find_package(Boost CONFIG REQUIRED COMPONENTS/' CMakeLists.txt \
-    && sed -i 's/set(boost_libs filesystem program_options iostreams system)/set(boost_libs filesystem program_options iostreams)/' CMakeLists.txt \
+    && sed -i \
+            -e 's/find_package(Boost REQUIRED COMPONENTS/find_package(Boost CONFIG REQUIRED COMPONENTS/' \
+            -e 's/set(boost_libs filesystem program_options iostreams system)/set(boost_libs filesystem program_options iostreams)/' \
+            CMakeLists.txt \
+    # bba subproject has its own find_package(Boost ...) requiring system.
+    && python3 -c 'import pathlib, re; p = pathlib.Path("bba/CMakeLists.txt"); s = p.read_text(); s = re.sub(r"find_package\(Boost REQUIRED COMPONENTS\s*\n\s*program_options\s*\n\s*filesystem\s*\n\s*system\)", "find_package(Boost CONFIG REQUIRED COMPONENTS program_options filesystem)", s); s = s.replace("${Boost_SYSTEM_LIBRARY}", ""); p.write_text(s)' \
     && cmake -S . -B build \
              -DARCH=xilinx \
              -DBUILD_GUI=OFF \
