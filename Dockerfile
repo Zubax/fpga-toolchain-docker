@@ -26,6 +26,7 @@ ARG PRJTRELLIS_REF=56bb17047cd8b062f784de8666ceb3f90f77f77a
 # sby has no tagged releases; pin to a recent main commit.
 ARG SBY_REF=f57802a16613f013e84e024df50fc3f0ea74f88b
 ARG VERIBLE_VERSION=v0.0-4053-g89d4d98a
+ARG BITWUZLA_VERSION=0.9.0
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -36,7 +37,7 @@ LABEL org.opencontainers.image.description="Open-source FPGA synthesis, P&R and 
 # System packages
 # ---------------------------------------------------------------------------
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        ca-certificates curl wget gnupg sudo locales tzdata \
+        ca-certificates curl wget gnupg sudo locales tzdata unzip \
         git make pkg-config autoconf gperf \
         build-essential clang cmake bison flex libfl-dev gawk \
         tcl-dev libreadline-dev libffi-dev zlib1g-dev libgmp-dev \
@@ -149,6 +150,22 @@ RUN set -eux; \
     chmod 0755 /usr/local/bin /usr/local/share /usr/local/share/man 2>/dev/null || true
 
 # ---------------------------------------------------------------------------
+# Bitwuzla (latest published release): SMT solver, drop-in alternative to z3
+# for sby's smtbmc engine. Upstream ships prebuilt static binaries + headers.
+# ---------------------------------------------------------------------------
+RUN set -eux; \
+    case "$(uname -m)" in \
+        x86_64)  bwarch="Linux-x86_64-static" ;; \
+        aarch64) bwarch="Linux-arm64-static"  ;; \
+        *) echo "Unsupported arch: $(uname -m)" >&2; exit 1 ;; \
+    esac; \
+    url="https://github.com/bitwuzla/bitwuzla/releases/download/${BITWUZLA_VERSION}/Bitwuzla-${bwarch}.zip"; \
+    curl -fsSL "${url}" -o /tmp/bitwuzla.zip; \
+    unzip -q /tmp/bitwuzla.zip -d /tmp/bitwuzla; \
+    cp -a "/tmp/bitwuzla/Bitwuzla-${bwarch}/." /usr/local/; \
+    rm -rf /tmp/bitwuzla /tmp/bitwuzla.zip
+
+# ---------------------------------------------------------------------------
 # Smoke-test the toolchain so a broken build fails here, not at first use.
 # ---------------------------------------------------------------------------
 RUN set -eux; \
@@ -188,6 +205,8 @@ RUN set -eux; \
     z3 --version; \
     cvc5 --version | head -n1; \
     boolector --version | head -n1; \
+    bitwuzla --version; \
+    printf '(set-logic QF_BV)\n(declare-const x (_ BitVec 8))\n(assert (= x #x2a))\n(check-sat)\n' | bitwuzla | grep -qx 'sat'; \
     fusesoc --version; \
     python3 -c "import cocotb, edalize, pytest; print('cocotb', cocotb.__version__)"
 

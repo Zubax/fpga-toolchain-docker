@@ -19,7 +19,7 @@ authentication is required to pull.
 - Verilator
 - edalize
 - GTKWave
-- SMT solvers: `z3`, `cvc5`, `boolector`, `yices-smt2`
+- SMT solvers: `z3`, `cvc5`, `boolector`, `yices-smt2`, `bitwuzla`
 - FuseSoC
 - cocotb (+ bus/test): `cocotb`, `cocotb-bus`, `cocotb-test`
 - Scientific Python: `numpy`, `scipy`, `sympy`, `matplotlib`, `plotly`
