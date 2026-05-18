@@ -179,6 +179,9 @@ RUN git clone --recurse-submodules https://github.com/gatecat/nextpnr-xilinx.git
             CMakeLists.txt \
     # bba subproject has its own find_package(Boost ...) requiring system.
     && python3 -c 'import pathlib, re; p = pathlib.Path("bba/CMakeLists.txt"); s = p.read_text(); s = re.sub(r"find_package\(Boost REQUIRED COMPONENTS\s*\n\s*program_options\s*\n\s*filesystem\s*\n\s*system\)", "find_package(Boost CONFIG REQUIRED COMPONENTS program_options filesystem)", s); s = s.replace("${Boost_SYSTEM_LIBRARY}", ""); p.write_text(s)' \
+    # Bundled json11 uses uint8_t without including <cstdint>; same GCC 15
+    # strictness as the prjxray header above.
+    && sed -i '/#include <cerrno>/a #include <cstdint>' 3rdparty/json11/json11.cpp \
     && cmake -S . -B build \
              -DARCH=xilinx \
              -DBUILD_GUI=OFF \
