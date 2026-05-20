@@ -27,8 +27,9 @@ ARG PRJTRELLIS_REF=56bb17047cd8b062f784de8666ceb3f90f77f77a
 ARG SBY_REF=f57802a16613f013e84e024df50fc3f0ea74f88b
 ARG VERIBLE_VERSION=v0.0-4053-g89d4d98a
 ARG BITWUZLA_VERSION=0.9.0
-# nextpnr-xilinx and prjxray have no tagged releases; pin to recent main commits.
-ARG NEXTPNR_XILINX_REF=8f178fc6a6d4dfbc57bef66c3ccff34d558047d5
+# nextpnr-xilinx and prjxray have no tagged releases; pin to recent commits. nextpnr-xilinx tracks the
+# openXC7 fork, which (unlike gatecat's) ships Spartan-7 site metadata + prjxray-db in its submodules.
+ARG NEXTPNR_XILINX_REF=45a986b88379a470e9e63e34b20664a513f41927
 ARG PRJXRAY_REF=c9f02d8576042325425824647ab5555b1bc77833
 ARG OPENFPGALOADER_REF=v1.1.1
 
@@ -157,31 +158,23 @@ RUN git clone --recurse-submodules https://github.com/f4pga/prjxray.git /tmp/prj
     && rm -rf /tmp/prjxray
 
 # ---------------------------------------------------------------------------
-# nextpnr-xilinx: P&R for Xilinx 7-series (Artix-7, Kintex-7, Zynq-7). Lives in
-# a separate fork from upstream nextpnr. Chipdbs are per-part and large, so
-# they are not bundled; users generate them at first use via the bbaexport.py
-# script shipped under /opt/nextpnr-xilinx/xilinx/python against a prjxray-db
-# checkout for their target part.
+# nextpnr-xilinx: P&R for Xilinx 7-series (Spartan-7, Artix-7, Kintex-7, Zynq-7).
+# Uses the openXC7 fork: unlike gatecat's, its bundled nextpnr-xilinx-meta + prjxray-db
+# submodules include Spartan-7, so xc7s* chipdbs can be generated. Chipdbs are per-part
+# and large, so they are not bundled; users generate one at first use by running the
+# bbaexport.py shipped under /opt/nextpnr-xilinx/xilinx/python (its prjxray-db and
+# nextpnr-xilinx-meta submodules sit alongside, so its argument defaults resolve them)
+# and assembling the result into a binary database with bbasm.
 # ---------------------------------------------------------------------------
-RUN git clone --recurse-submodules https://github.com/gatecat/nextpnr-xilinx.git /tmp/nextpnr-xilinx \
+RUN git clone https://github.com/openXC7/nextpnr-xilinx.git /tmp/nextpnr-xilinx \
     && cd /tmp/nextpnr-xilinx \
     && git checkout "${NEXTPNR_XILINX_REF}" \
-    && git submodule update --init --recursive \
-    # CMake 4.x's legacy FindBoost module no longer maps Boost 1.90 components
-    # correctly; force the CMake-config code path supplied by Boost itself.
-    # Also drop the 'system' component: Boost.System has been header-only
-    # since 1.69 and Ubuntu 26.04 no longer ships libboost-system-dev, so the
-    # request fails even though the headers (which is all the code actually
-    # uses) are present via libboost-dev.
-    && sed -i \
-            -e 's/find_package(Boost REQUIRED COMPONENTS/find_package(Boost CONFIG REQUIRED COMPONENTS/' \
-            -e 's/set(boost_libs filesystem program_options iostreams system)/set(boost_libs filesystem program_options iostreams)/' \
-            CMakeLists.txt \
-    # bba subproject has its own find_package(Boost ...) requiring system.
-    && python3 -c 'import pathlib, re; p = pathlib.Path("bba/CMakeLists.txt"); s = p.read_text(); s = re.sub(r"find_package\(Boost REQUIRED COMPONENTS\s*\n\s*program_options\s*\n\s*filesystem\s*\n\s*system\)", "find_package(Boost CONFIG REQUIRED COMPONENTS program_options filesystem)", s); s = s.replace("${Boost_SYSTEM_LIBRARY}", ""); p.write_text(s)' \
-    # Bundled json11 uses uint8_t without including <cstdint>; same GCC 15
-    # strictness as the prjxray header above.
-    && sed -i '/#include <cerrno>/a #include <cstdint>' 3rdparty/json11/json11.cpp \
+    # Init only the data submodules bbaexport.py needs; skip the large nextpnr-tests submodule.
+    && git submodule update --init --recursive xilinx/external/prjxray-db xilinx/external/nextpnr-xilinx-meta \
+    # CMake 4.x's legacy FindBoost module no longer maps Boost 1.90 components correctly; force the
+    # CMake-config code path supplied by Boost itself. (openXC7 already omits the header-only 'system'
+    # component from its requested libs, and its json11 already includes <cstdint>, so no other patches.)
+    && sed -i 's/find_package(Boost REQUIRED COMPONENTS/find_package(Boost CONFIG REQUIRED COMPONENTS/' CMakeLists.txt \
     && cmake -S . -B build \
              -DARCH=xilinx \
              -DBUILD_GUI=OFF \
@@ -190,8 +183,11 @@ RUN git clone --recurse-submodules https://github.com/gatecat/nextpnr-xilinx.git
              -DCMAKE_BUILD_TYPE=Release \
     && cmake --build build -j"$(nproc)" \
     && cmake --install build \
-    # Keep the python/ tree around so users can run bbaexport.py to generate
-    # chipdbs against a prjxray-db checkout for whichever 7-series part they target.
+    # openXC7's CMake installs only nextpnr-xilinx; bbasm (built from bba/bba.cmake) assembles the
+    # .bba chipdb into nextpnr's binary format and is not installed, so place it on PATH ourselves.
+    && install -Dm755 build/bbasm /usr/local/bin/bbasm \
+    # Keep the xilinx/ tree (bbaexport.py + its prjxray-db / nextpnr-xilinx-meta submodules +
+    # constids.inc) so users can generate chipdbs for whichever 7-series part they target.
     && mkdir -p /opt/nextpnr-xilinx \
     && cp -a xilinx /opt/nextpnr-xilinx/ \
     && rm -rf /tmp/nextpnr-xilinx
@@ -264,7 +260,12 @@ RUN set -eux; \
     command -v xc7frames2bit; \
     command -v xc7patch; \
     command -v bitread; \
+    bbasm --help > /dev/null; \
     test -f /opt/nextpnr-xilinx/xilinx/python/bbaexport.py; \
+    # Spartan-7 chipdb prerequisites: the metadata + prjxray-db submodules must carry xc7s* data
+    # (the gatecat fork's pinned metadata did not, which silently broke xc7s50 chipdb generation).
+    test -f /opt/nextpnr-xilinx/xilinx/external/nextpnr-xilinx-meta/spartan7/wire_intents.json; \
+    test -d /opt/nextpnr-xilinx/xilinx/external/prjxray-db/spartan7; \
     openFPGALoader --Version; \
     iverilog -V 2>&1 | head -n1; \
     verilator --version; \
