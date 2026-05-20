@@ -48,6 +48,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         tcl-dev libreadline-dev libffi-dev zlib1g-dev libgmp-dev \
         libboost-all-dev libeigen3-dev \
         python3 python3-dev python3-pip python3-setuptools \
+        pypy3 \
         iverilog verilator gtkwave \
         z3 cvc5 boolector \
         libftdi1-dev libhidapi-dev libudev-dev \
