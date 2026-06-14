@@ -250,6 +250,33 @@ RUN set -eux; \
     rm -rf /tmp/bitwuzla /tmp/bitwuzla.zip
 
 # ---------------------------------------------------------------------------
+# Verilator from source (pinned tag). The apt 'verilator' installed above lags
+# upstream by several minor releases, and its --coverage instrumentation differs
+# from current Verilator (e.g. 5.048 toggles generate-block coverage points that
+# older builds skip), which our consumers' coverage gates depend on. We therefore
+# build the exact upstream tag and let it shadow the apt binary: this RUN installs
+# to /usr/local/bin, which precedes /usr/bin on PATH, so /usr/local/bin/verilator
+# wins. Deliberately placed late so the heavy toolchain layers above stay cached.
+# Most build deps are already present from the system-packages layer; only help2man
+# and ccache are added here.
+# ---------------------------------------------------------------------------
+ARG VERILATOR_REF=v5.048
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends help2man ccache; \
+    git clone https://github.com/verilator/verilator /tmp/verilator; \
+    cd /tmp/verilator; \
+    git checkout "${VERILATOR_REF}"; \
+    autoconf; \
+    ./configure --prefix=/usr/local; \
+    make -j"$(nproc)"; \
+    make install; \
+    cd /; \
+    rm -rf /tmp/verilator; \
+    apt-get clean; \
+    rm -rf /var/lib/apt/lists/*
+
+# ---------------------------------------------------------------------------
 # Smoke-test the toolchain so a broken build fails here, not at first use.
 # ---------------------------------------------------------------------------
 RUN set -eux; \
@@ -269,7 +296,9 @@ RUN set -eux; \
     test -d /opt/nextpnr-xilinx/xilinx/external/prjxray-db/spartan7; \
     openFPGALoader --Version; \
     iverilog -V 2>&1 | head -n1; \
+    # Assert the source-built Verilator (not apt's older one) is the one on PATH.
     verilator --version; \
+    verilator --version | grep -q 'Verilator 5\.048'; \
     verible-verilog-lint --version | head -n1; \
     tmpdir="$(mktemp -d)"; \
     printf '%s\n' \
