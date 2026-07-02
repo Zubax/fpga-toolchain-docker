@@ -9,7 +9,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: zubax/zubax-fpga-toolchain
+  IMAGE_NAME: zubax/zubax-fpga-toolchain-oss
 
 jobs:
   build-publish:
@@ -53,14 +53,14 @@ jobs:
             type=semver,pattern={{major}}
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
-            org.opencontainers.image.description=Open-source FPGA synthesis, P&R, and verification toolchain (Yosys, nextpnr-ecp5, nextpnr-xilinx, prjtrellis, prjxray, Verilator, Icarus, SymbiYosys, cocotb, FuseSoC, Verible, openFPGALoader).
+            org.opencontainers.image.description=Open-source FPGA synthesis, P&R, and verification toolchain.
             org.opencontainers.image.licenses=MIT
 
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          context: .
-          file: ./Dockerfile
+          context: ./oss
+          file: ./oss/Dockerfile
           platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}

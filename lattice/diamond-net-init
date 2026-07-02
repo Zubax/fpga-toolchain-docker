@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Optionally create a runtime dummy NIC for node-locked Diamond licenses.
+
+set -euo pipefail
+
+normalize_mac() {
+    local raw="${1//:/}"
+    raw="${raw//-/}"
+    if [[ ! "${raw}" =~ ^[[:xdigit:]]{12}$ ]]; then
+        echo "Invalid MAC address: $1" >&2
+        return 1
+    fi
+    printf '%s:%s:%s:%s:%s:%s\n' \
+        "${raw:0:2}" "${raw:2:2}" "${raw:4:2}" \
+        "${raw:6:2}" "${raw:8:2}" "${raw:10:2}"
+}
+
+if [[ -n "${LATTICE_DUMMY_MAC:-}" ]]; then
+    mac="$(normalize_mac "${LATTICE_DUMMY_MAC}")"
+    ip_cmd=(ip)
+    if [[ "$(id -u)" != "0" ]]; then
+        ip_cmd=(sudo -n ip)
+    fi
+
+    if ! "${ip_cmd[@]}" link show dummy0 >/dev/null 2>&1; then
+        "${ip_cmd[@]}" link add dummy0 type dummy
+    fi
+    "${ip_cmd[@]}" link set dev dummy0 address "${mac}"
+    "${ip_cmd[@]}" link set dev dummy0 up
+fi
+
+if (($# > 0)); then
+    exec "$@"
+fi
+
+exec /bin/bash

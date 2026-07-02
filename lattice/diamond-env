@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Run a command with the Lattice Diamond command-line environment.
+
+set -euo pipefail
+
+export DIAMOND_ROOT="${DIAMOND_ROOT:-/usr/local/diamond/3.14}"
+bindir="${DIAMOND_ROOT}/bin/lin64"
+
+if [[ ! -f "${bindir}/diamond_env" ]]; then
+    echo "Diamond environment not found: ${bindir}/diamond_env" >&2
+    exit 127
+fi
+
+export bindir
+# shellcheck disable=SC1091
+set +u
+source "${bindir}/diamond_env"
+set -u
+
+if (($# > 0)); then
+    exec "$@"
+fi
+
+exec /bin/bash

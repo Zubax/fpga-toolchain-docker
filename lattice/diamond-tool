@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Dispatch a Diamond tool name through diamond-env without exporting Diamond's
+# old libraries into unrelated shell sessions.
+
+set -euo pipefail
+
+export DIAMOND_ROOT="${DIAMOND_ROOT:-/usr/local/diamond/3.14}"
+tool="$(basename "$0")"
+
+if [[ "${tool}" == "diamond-tool" ]]; then
+    exec diamond-env "$@"
+fi
+
+export bindir="${DIAMOND_ROOT}/bin/lin64"
+# shellcheck disable=SC1091
+set +u
+source "${bindir}/diamond_env"
+set -u
+
+for candidate in \
+    "${DIAMOND_ROOT}/bin/lin64/${tool}" \
+    "${DIAMOND_ROOT}/ispfpga/bin/lin64/${tool}" \
+    "${DIAMOND_ROOT}/questasim/linux_x86_64/${tool}" \
+    "${DIAMOND_ROOT}/questasim/license_server/${tool}"
+do
+    if [[ -x "${candidate}" ]]; then
+        exec "${candidate}" "$@"
+    fi
+done
+
+echo "Diamond tool not found: ${tool}" >&2
+exit 127

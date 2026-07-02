@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Run AMD/Xilinx tools with the container-local Vivado environment.
+
+set -euo pipefail
+
+export XILINX_VIVADO="${XILINX_VIVADO:-/opt/Xilinx/2025.2.1/Vivado}"
+compat_lib="${XILINX_VIVADO}/lib/lnx64.o/Ubuntu/24"
+
+if [[ ! -d "${XILINX_VIVADO}" ]]; then
+    echo "XILINX_VIVADO does not exist: ${XILINX_VIVADO}" >&2
+    exit 127
+fi
+
+export PATH="${XILINX_VIVADO}/bin:${PATH}"
+if [[ -d "${compat_lib}" ]]; then
+    export LD_LIBRARY_PATH="${compat_lib}${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+fi
+
+tool="$(basename "$0")"
+if [[ "${tool}" == "amd-tool" || "${tool}" == "vivado-env" ]]; then
+    if (($# > 0)); then
+        exec "$@"
+    fi
+    exec /bin/bash
+fi
+
+exec "${XILINX_VIVADO}/bin/${tool}" "$@"

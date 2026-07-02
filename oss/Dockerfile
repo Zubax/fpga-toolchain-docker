@@ -5,37 +5,37 @@
 # others are installed from apt.
 #
 # Build:
-#   docker build -t zubax-fpga-toolchain .
+#   docker build -f oss/Dockerfile -t zubax-fpga-toolchain-oss oss
 #
 # Versions are pinned via ARG defaults below. To rebuild against newer refs:
-#   docker build --build-arg YOSYS_REF=v0.66 --build-arg YICES2_REF=yices-2.7.0 -t zubax-fpga-toolchain .
+#   docker build -f oss/Dockerfile --build-arg YOSYS_REF=<newer-tag> --build-arg YICES2_REF=<newer-tag> -t zubax-fpga-toolchain-oss oss
 #
 # Run:
-#   docker run --rm -it -v "$PWD":/work -w /work zubax-fpga-toolchain
+#   docker run --rm -it -v "$PWD":/work -w /work zubax-fpga-toolchain-oss
 
 ARG UBUNTU_VERSION=26.04
 FROM ubuntu:${UBUNTU_VERSION}
 
-# Pinned to latest published releases as of 2026-05-17.
-ARG YOSYS_REF=v0.65
+# Pinned to latest published releases/heads as of 2026-07-02.
+ARG YOSYS_REF=v0.66
 ARG NEXTPNR_REF=nextpnr-0.10
 ARG YICES2_REF=yices-2.7.0
 # prjtrellis hasn't tagged a release since 1.4 (2023), but its main branch is the
 # only branch nextpnr-0.10 will build against. Pin to a recent main commit.
 ARG PRJTRELLIS_REF=56bb17047cd8b062f784de8666ceb3f90f77f77a
 # sby has no tagged releases; pin to a recent main commit.
-ARG SBY_REF=f57802a16613f013e84e024df50fc3f0ea74f88b
-ARG VERIBLE_VERSION=v0.0-4053-g89d4d98a
-ARG BITWUZLA_VERSION=0.9.0
+ARG SBY_REF=d3e72d26e8634bca4ca16f3e4d84331481f06ab6
+ARG VERIBLE_VERSION=v0.0-4080-ga0a8d8eb
+ARG BITWUZLA_VERSION=0.9.1
 # nextpnr-xilinx and prjxray have no tagged releases; pin to recent commits. nextpnr-xilinx tracks the
 # openXC7 fork, which (unlike gatecat's) ships Spartan-7 site metadata + prjxray-db in its submodules.
-ARG NEXTPNR_XILINX_REF=45a986b88379a470e9e63e34b20664a513f41927
+ARG NEXTPNR_XILINX_REF=1743d0f4b2d796b9c866bcc5bc1e4a2c9e79b472
 ARG PRJXRAY_REF=c9f02d8576042325425824647ab5555b1bc77833
 ARG OPENFPGALOADER_REF=v1.1.1
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-LABEL org.opencontainers.image.title="zubax-fpga-toolchain"
+LABEL org.opencontainers.image.title="zubax-fpga-toolchain-oss"
 LABEL org.opencontainers.image.description="Open-source FPGA synthesis, P&R and verification toolchain (Yosys, nextpnr-ecp5, nextpnr-xilinx, prjtrellis, prjxray, Verilator, Icarus, SymbiYosys, cocotb, FuseSoC, Verible, openFPGALoader)."
 
 # ---------------------------------------------------------------------------
@@ -252,7 +252,7 @@ RUN set -eux; \
 # ---------------------------------------------------------------------------
 # Verilator from source (pinned tag). The apt 'verilator' installed above lags
 # upstream by several minor releases, and its --coverage instrumentation differs
-# from current Verilator (e.g. 5.048 toggles generate-block coverage points that
+# from current Verilator (e.g. 5.050 toggles generate-block coverage points that
 # older builds skip), which our consumers' coverage gates depend on. We therefore
 # build the exact upstream tag and let it shadow the apt binary: this RUN installs
 # to /usr/local/bin, which precedes /usr/bin on PATH, so /usr/local/bin/verilator
@@ -260,7 +260,7 @@ RUN set -eux; \
 # Most build deps are already present from the system-packages layer; only help2man
 # and ccache are added here.
 # ---------------------------------------------------------------------------
-ARG VERILATOR_REF=v5.048
+ARG VERILATOR_REF=v5.050
 RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends help2man ccache; \
@@ -298,7 +298,7 @@ RUN set -eux; \
     iverilog -V 2>&1 | head -n1; \
     # Assert the source-built Verilator (not apt's older one) is the one on PATH.
     verilator --version; \
-    verilator --version | grep -q 'Verilator 5\.048'; \
+    verilator --version | grep -q 'Verilator 5\.050'; \
     verible-verilog-lint --version | head -n1; \
     tmpdir="$(mktemp -d)"; \
     printf '%s\n' \

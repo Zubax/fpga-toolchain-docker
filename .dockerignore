@@ -1,0 +1,15 @@
+.git
+.github
+.DS_Store
+.vscode
+.idea
+__pycache__
+build
+work
+*.log
+*.tmp
+*.zip
+*.bit
+*.bin
+*.mcs
+*.vcd
