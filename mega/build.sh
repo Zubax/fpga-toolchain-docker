@@ -5,7 +5,7 @@ set -euo pipefail
 
 cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
 
-REGISTRY="${REGISTRY:-ghcr.io/zubax}"
+REGISTRY="${REGISTRY:-containers.zubax.com}"
 TAG="${TAG:-$(date +%F)}"
 PLATFORM="${PLATFORM:-linux/amd64}"
 TAG_LATEST="${TAG_LATEST:-1}"

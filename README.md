@@ -21,7 +21,7 @@ docker run --rm -it -v "$PWD":/work -w /work ghcr.io/zubax/zubax-fpga-toolchain-
 Using the helper script:
 
 ```sh
-IMAGE=ghcr.io/zubax/zubax-fpga-toolchain-mega:latest ./run.sh make verify
+IMAGE=containers.zubax.com/zubax-fpga-toolchain-mega:latest ./run.sh make verify
 ```
 
 The OSS image is published via CI/CD on push.
@@ -74,7 +74,7 @@ Normally you set the MAC address using `--mac-address`:
 ```sh
 docker run --rm --mac-address "$DIAMOND_LICENSE_MAC" \
     -v "$PWD":/work -w /work \
-    ghcr.io/zubax/zubax-fpga-toolchain-mega:latest \
+    containers.zubax.com/zubax-fpga-toolchain-mega:latest \
     ...
 ```
 
@@ -82,7 +82,7 @@ The helper uses environment variable `DIAMOND_LICENSE_MAC`:
 
 ```sh
 DIAMOND_LICENSE_MAC="$DIAMOND_LICENSE_MAC" \
-IMAGE=ghcr.io/zubax/zubax-fpga-toolchain-mega:latest \
+IMAGE=containers.zubax.com/zubax-fpga-toolchain-mega:latest \
 ./run.sh make verify
 ```
 
@@ -92,7 +92,7 @@ Fallback mode, if FlexLM rejects Docker's eth0 MAC, creates `dummy0` at containe
 docker run --rm --cap-add NET_ADMIN \
     -e LATTICE_DUMMY_MAC="$DIAMOND_LICENSE_MAC" \
     -v "$PWD":/work -w /work \
-    ghcr.io/zubax/zubax-fpga-toolchain-mega:latest \
+    containers.zubax.com/zubax-fpga-toolchain-mega:latest \
     diamond-net-init \
     ...
 ```

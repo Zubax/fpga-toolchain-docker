@@ -5,12 +5,12 @@
 #
 # Build:
 #   docker buildx build --load \
-#       --build-arg AMD_IMAGE=ghcr.io/zubax/zubax-fpga-toolchain-amd:latest \
-#       --build-arg LATTICE_IMAGE=ghcr.io/zubax/zubax-fpga-toolchain-lattice:latest \
-#       -f mega/Dockerfile -t ghcr.io/zubax/zubax-fpga-toolchain-mega:latest mega
+#       --build-arg AMD_IMAGE=containers.zubax.com/zubax-fpga-toolchain-amd:latest \
+#       --build-arg LATTICE_IMAGE=containers.zubax.com/zubax-fpga-toolchain-lattice:latest \
+#       -f mega/Dockerfile -t containers.zubax.com/zubax-fpga-toolchain-mega:latest mega
 
-ARG AMD_IMAGE=ghcr.io/zubax/zubax-fpga-toolchain-amd:latest
-ARG LATTICE_IMAGE=ghcr.io/zubax/zubax-fpga-toolchain-lattice:latest
+ARG AMD_IMAGE=containers.zubax.com/zubax-fpga-toolchain-amd:latest
+ARG LATTICE_IMAGE=containers.zubax.com/zubax-fpga-toolchain-lattice:latest
 
 FROM ${LATTICE_IMAGE} AS lattice
 FROM ${AMD_IMAGE}

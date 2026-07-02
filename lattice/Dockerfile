@@ -8,7 +8,7 @@
 # Build:
 #   docker buildx build --load \
 #       --build-context diamond-src=/usr/local/diamond/3.14 \
-#       -f lattice/Dockerfile -t ghcr.io/zubax/zubax-fpga-toolchain-lattice:latest lattice
+#       -f lattice/Dockerfile -t containers.zubax.com/zubax-fpga-toolchain-lattice:latest lattice
 
 ARG OSS_IMAGE=ghcr.io/zubax/zubax-fpga-toolchain-oss:latest
 FROM ${OSS_IMAGE}

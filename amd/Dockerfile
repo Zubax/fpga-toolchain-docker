@@ -5,7 +5,7 @@
 # Build:
 #   docker buildx build --load \
 #       --build-context vivado-src=/mnt/storage/xilinx/2025.2.1 \
-#       -f amd/Dockerfile -t ghcr.io/zubax/zubax-fpga-toolchain-amd:latest amd
+#       -f amd/Dockerfile -t containers.zubax.com/zubax-fpga-toolchain-amd:latest amd
 
 ARG OSS_IMAGE=ghcr.io/zubax/zubax-fpga-toolchain-oss:latest
 FROM ${OSS_IMAGE}

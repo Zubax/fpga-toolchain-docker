@@ -5,13 +5,13 @@ set -euo pipefail
 
 cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
 
-REGISTRY="${REGISTRY:-ghcr.io/zubax}"
+REGISTRY="${REGISTRY:-containers.zubax.com}"
 TAG="${TAG:-$(date +%F)}"
 PLATFORM="${PLATFORM:-linux/amd64}"
 TAG_LATEST="${TAG_LATEST:-1}"
 VIVADO_CONTEXT="${VIVADO_CONTEXT:-/mnt/storage/xilinx/2025.2.1}"
 REPO="${REGISTRY}/zubax-fpga-toolchain-amd"
-OSS_IMAGE="${OSS_IMAGE:-${REGISTRY}/zubax-fpga-toolchain-oss:${TAG}}"
+OSS_IMAGE="${OSS_IMAGE:-ghcr.io/zubax/zubax-fpga-toolchain-oss:${TAG}}"
 
 [[ -d "${VIVADO_CONTEXT}/Vivado" ]] || {
     echo "ERROR: Vivado context does not look like an AMD release root: ${VIVADO_CONTEXT}" >&2
