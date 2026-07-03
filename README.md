@@ -72,18 +72,17 @@ A Docker image cannot create or persist a network interface at build time; netwo
 Normally you set the MAC address using `--mac-address`:
 
 ```sh
+DIAMOND_LICENSE_MAC="44:8a:5b:83:24:0e"
 docker run --rm --mac-address "$DIAMOND_LICENSE_MAC" \
     -v "$PWD":/work -w /work \
     containers.zubax.com/zubax-fpga-toolchain-mega:latest \
     ...
 ```
 
-The helper uses environment variable `DIAMOND_LICENSE_MAC`:
+The helper uses same environment variable `DIAMOND_LICENSE_MAC`:
 
 ```sh
-DIAMOND_LICENSE_MAC="$DIAMOND_LICENSE_MAC" \
-IMAGE=containers.zubax.com/zubax-fpga-toolchain-mega:latest \
-./run.sh make verify
+IMAGE=containers.zubax.com/zubax-fpga-toolchain-mega:latest ./run.sh make verify
 ```
 
 Fallback mode, if FlexLM rejects Docker's eth0 MAC, creates `dummy0` at container start and requires `NET_ADMIN`:
