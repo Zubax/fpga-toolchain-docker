@@ -27,4 +27,5 @@ docker buildx build \
     "${tags[@]}" \
     --build-arg "AMD_IMAGE=${AMD_IMAGE}" \
     --build-arg "LATTICE_IMAGE=${LATTICE_IMAGE}" \
+    --build-context "amd-wrapper=../amd" \
     .

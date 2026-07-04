@@ -28,6 +28,13 @@ for candidate in \
     "${DIAMOND_ROOT}/questasim/license_server/${tool}"
 do
     if [[ -x "${candidate}" ]]; then
+        if [[ -z "${DISPLAY:-}" ]] && command -v xvfb-run >/dev/null 2>&1; then
+            case "${tool}" in
+                diamond | diamondc | pnmainc)
+                    exec xvfb-run -a -s "-screen 0 1280x1024x24" "${candidate}" "$@"
+                    ;;
+            esac
+        fi
         exec "${candidate}" "$@"
     fi
 done

@@ -24,4 +24,31 @@ if [[ "${tool}" == "amd-tool" || "${tool}" == "vivado-env" ]]; then
     exec /bin/bash
 fi
 
+if [[ "${tool}" == "vivado" ]]; then
+    args=("$@")
+    for i in "${!args[@]}"; do
+        if [[ "${args[$i]}" == "-source" || "${args[$i]}" == "-script" ]]; then
+            script_index=$((i + 1))
+            if ((script_index >= ${#args[@]})); then
+                break
+            fi
+            script="${args[$script_index]}"
+            script="${script//\\/\\\\}"
+            script="${script//\"/\\\"}"
+            script="${script//\$/\\$}"
+            script="${script//[/\\[}"
+            wrapper="$(mktemp "${TMPDIR:-/tmp}/vivado-wrapper.XXXXXX.tcl")"
+            trap 'rm -f "${wrapper}"' EXIT
+            {
+                printf '%s\n' 'catch {config_webtalk -user off}'
+                printf '%s\n' 'catch {config_webtalk -install off}'
+                printf 'source "%s"\n' "${script}"
+            } >"${wrapper}"
+            args[$script_index]="${wrapper}"
+            "${XILINX_VIVADO}/bin/${tool}" "${args[@]}"
+            exit $?
+        fi
+    done
+fi
+
 exec "${XILINX_VIVADO}/bin/${tool}" "$@"

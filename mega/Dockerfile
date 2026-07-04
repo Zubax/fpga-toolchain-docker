@@ -27,13 +27,14 @@ COPY --from=lattice /usr/local/diamond/${DIAMOND_VERSION}/ /usr/local/diamond/${
 COPY --from=lattice /usr/local/bin/diamond-env /usr/local/bin/diamond-env
 COPY --from=lattice /usr/local/bin/diamond-tool /usr/local/bin/diamond-tool
 COPY --from=lattice /usr/local/bin/diamond-net-init /usr/local/bin/diamond-net-init
+COPY --from=amd-wrapper amd-tool /usr/local/bin/amd-tool
 
 RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends iproute2 xvfb xauth; \
     apt-get clean; \
     rm -rf /var/lib/apt/lists/*; \
-    chmod 0755 /usr/local/bin/diamond-env /usr/local/bin/diamond-tool /usr/local/bin/diamond-net-init; \
+    chmod 0755 /usr/local/bin/amd-tool /usr/local/bin/diamond-env /usr/local/bin/diamond-tool /usr/local/bin/diamond-net-init; \
     mkdir -p /lib64; \
     ln -sf /lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 /lib64/ld-lsb-x86-64.so.3; \
     for tool in \
