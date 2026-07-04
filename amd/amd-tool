@@ -25,6 +25,16 @@ if [[ "${tool}" == "amd-tool" || "${tool}" == "vivado-env" ]]; then
 fi
 
 if [[ "${tool}" == "vivado" ]]; then
+    for candidate in /usr/lib/x86_64-linux-gnu/libudev.so.1 /lib/x86_64-linux-gnu/libudev.so.1; do
+        if [[ -e "${candidate}" ]]; then
+            case ":${LD_PRELOAD:-}:" in
+                *":${candidate}:"*) ;;
+                *) export LD_PRELOAD="${candidate}${LD_PRELOAD:+:${LD_PRELOAD}}" ;;
+            esac
+            break
+        fi
+    done
+
     args=("$@")
     for i in "${!args[@]}"; do
         if [[ "${args[$i]}" == "-source" || "${args[$i]}" == "-script" ]]; then
