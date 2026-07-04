@@ -3,6 +3,8 @@
 
 set -euo pipefail
 
+DEFAULT_LATTICE_DUMMY_MAC="448a5b83240e"
+
 normalize_mac() {
     local raw="${1//:/}"
     raw="${raw//-/}"
@@ -15,19 +17,44 @@ normalize_mac() {
         "${raw:6:2}" "${raw:8:2}" "${raw:10:2}"
 }
 
-if [[ -n "${LATTICE_DUMMY_MAC:-}" ]]; then
-    mac="$(normalize_mac "${LATTICE_DUMMY_MAC}")"
+setup_license_mac() {
+    local mac raw output
+    raw="${LATTICE_DUMMY_MAC:-${DEFAULT_LATTICE_DUMMY_MAC}}"
+    mac="$(normalize_mac "${raw}")" || return 0
+
     ip_cmd=(ip)
     if [[ "$(id -u)" != "0" ]]; then
+        if ! command -v sudo >/dev/null 2>&1; then
+            echo "warning: cannot configure dummy0 for Diamond license: sudo is unavailable" >&2
+            return 0
+        fi
         ip_cmd=(sudo -n ip)
     fi
 
-    if ! "${ip_cmd[@]}" link show dummy0 >/dev/null 2>&1; then
-        "${ip_cmd[@]}" link add dummy0 type dummy
+    if "${ip_cmd[@]}" link show eth0 >/dev/null 2>&1; then
+        if output="$("${ip_cmd[@]}" link set dev eth0 address "${mac}" 2>&1)"; then
+            return 0
+        fi
+        echo "warning: cannot set eth0 MAC for Diamond license: ${output}" >&2
     fi
-    "${ip_cmd[@]}" link set dev dummy0 address "${mac}"
-    "${ip_cmd[@]}" link set dev dummy0 up
-fi
+
+    if ! "${ip_cmd[@]}" link show dummy0 >/dev/null 2>&1; then
+        if ! output="$("${ip_cmd[@]}" link add dummy0 type dummy 2>&1)"; then
+            echo "warning: cannot create dummy0 for Diamond license: ${output}" >&2
+            return 0
+        fi
+    fi
+    if ! output="$("${ip_cmd[@]}" link set dev dummy0 address "${mac}" 2>&1)"; then
+        echo "warning: cannot set dummy0 MAC for Diamond license: ${output}" >&2
+        return 0
+    fi
+    if ! output="$("${ip_cmd[@]}" link set dev dummy0 up 2>&1)"; then
+        echo "warning: cannot bring up dummy0 for Diamond license: ${output}" >&2
+        return 0
+    fi
+}
+
+setup_license_mac
 
 if (($# > 0)); then
     exec "$@"

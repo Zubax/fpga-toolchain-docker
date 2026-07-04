@@ -67,36 +67,32 @@ Pass the resulting `.bin` to `nextpnr-xilinx --chipdb xc7s50.bin ...`. Regenerat
 
 ## zubax-fpga-toolchain-lattice
 
-The Diamond license is bound to a NIC MAC address.
-A Docker image cannot create or persist a network interface at build time; network interfaces are runtime kernel state.
-Normally you set the MAC address using `--mac-address`:
+The Diamond license is bound to a NIC MAC address. The Diamond wrappers attempt to set `eth0`, falling back to
+`dummy0`, with the CI license MAC (`44:8a:5b:83:24:0e`) before launching the tool. This requires `NET_ADMIN`; without
+it the helper continues best-effort, so workflows that need Diamond should grant the capability:
 
 ```sh
-DIAMOND_LICENSE_MAC="44:8a:5b:83:24:0e"
-docker run --rm --mac-address "$DIAMOND_LICENSE_MAC" \
+docker run --rm --cap-add NET_ADMIN \
     -v "$PWD":/work -w /work \
     containers.zubax.com/zubax-fpga-toolchain-mega:latest \
     ...
 ```
 
-The helper uses same environment variable `DIAMOND_LICENSE_MAC`:
+The helper script uses the same automatic setup:
 
 ```sh
 IMAGE=containers.zubax.com/zubax-fpga-toolchain-mega:latest ./run.sh make verify
 ```
 
-Fallback mode, if FlexLM rejects Docker's eth0 MAC, creates `dummy0` at container start and requires `NET_ADMIN`:
+Set `LATTICE_DUMMY_MAC` only to override the default:
 
 ```sh
 docker run --rm --cap-add NET_ADMIN \
-    -e LATTICE_DUMMY_MAC="$DIAMOND_LICENSE_MAC" \
+    -e LATTICE_DUMMY_MAC="44:8a:5b:83:24:0e" \
     -v "$PWD":/work -w /work \
     containers.zubax.com/zubax-fpga-toolchain-mega:latest \
-    diamond-net-init \
     ...
 ```
-
-The helper provides `LATTICE_DUMMY_MAC` env var for that purpose.
 
 ## License
 

@@ -2,8 +2,7 @@
 # Run a command (or interactive shell, the default) inside the container, mounting the current directory at /work.
 # If $DISPLAY is set, the host X server is shared so GUI tools (GTKWave) work.
 #
-# For Lattice/Mega images, set DIAMOND_LICENSE_MAC for Docker's eth0 MAC override,
-# or LATTICE_DUMMY_MAC to request the runtime dummy0 fallback.
+# Lattice/Mega images configure the Diamond license MAC internally; grant NET_ADMIN for that best-effort setup.
 
 set -euo pipefail
 
@@ -19,13 +18,11 @@ if [[ -n "${DISPLAY:-}" ]]; then
     docker_args+=(-e DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix)
 fi
 
-if [[ -n "${DIAMOND_LICENSE_MAC:-}" ]]; then
-    docker_args+=(--mac-address "${DIAMOND_LICENSE_MAC}")
-fi
-
-if [[ -n "${LATTICE_DUMMY_MAC:-}" ]]; then
-    docker_args+=(--cap-add NET_ADMIN -e "LATTICE_DUMMY_MAC=${LATTICE_DUMMY_MAC}")
-    exec docker run "${docker_args[@]}" "$IMAGE" diamond-net-init "$@"
+if [[ "${IMAGE}" == *zubax-fpga-toolchain-lattice* || "${IMAGE}" == *zubax-fpga-toolchain-mega* ]]; then
+    docker_args+=(--cap-add NET_ADMIN)
+    if [[ -n "${LATTICE_DUMMY_MAC:-}" ]]; then
+        docker_args+=(-e "LATTICE_DUMMY_MAC=${LATTICE_DUMMY_MAC}")
+    fi
 fi
 
 exec docker run "${docker_args[@]}" "$IMAGE" "$@"

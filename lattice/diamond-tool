@@ -11,6 +11,10 @@ if [[ "${tool}" == "diamond-tool" ]]; then
     exec diamond-env "$@"
 fi
 
+if command -v diamond-net-init >/dev/null 2>&1; then
+    diamond-net-init true || true
+fi
+
 export bindir="${DIAMOND_ROOT}/bin/lin64"
 # shellcheck disable=SC1091
 set +u

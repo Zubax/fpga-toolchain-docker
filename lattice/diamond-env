@@ -11,6 +11,10 @@ if [[ ! -f "${bindir}/diamond_env" ]]; then
     exit 127
 fi
 
+if command -v diamond-net-init >/dev/null 2>&1; then
+    diamond-net-init true || true
+fi
+
 export bindir
 # shellcheck disable=SC1091
 set +u

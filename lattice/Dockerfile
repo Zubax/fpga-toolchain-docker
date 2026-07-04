@@ -27,7 +27,7 @@ COPY diamond-env diamond-tool diamond-net-init /usr/local/bin/
 
 RUN set -eux; \
     apt-get update; \
-    apt-get install -y --no-install-recommends iproute2; \
+    apt-get install -y --no-install-recommends iproute2 xvfb xauth; \
     apt-get clean; \
     rm -rf /var/lib/apt/lists/*; \
     chmod 0755 /usr/local/bin/diamond-env /usr/local/bin/diamond-tool /usr/local/bin/diamond-net-init; \
