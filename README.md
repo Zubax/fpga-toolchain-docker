@@ -94,6 +94,59 @@ docker run --rm --cap-add NET_ADMIN \
     ...
 ```
 
+## Remote bitstream CI (BuildKit)
+
+Build FPGA bitstreams on a remote build host **inside the mega image**, driven
+from your laptop. `buildkitd` on the build host reuses the mega base from its
+containerd image store (no re-pull), runs Vivado in a Dockerfile `RUN`, and
+exports just the bitstream. Synthesis only — board programming stays in the
+project.
+
+**Build host, once** (LAN, insecure — fine on a trusted network). Extract the
+buildkit binaries from the `moby/buildkit` image, then run `buildkitd` with a
+containerd worker sharing docker's image store (namespace `moby`):
+
+```sh
+buildkitd --addr tcp://0.0.0.0:1234 \
+  --oci-worker=false --containerd-worker=true \
+  --containerd-worker-addr=/run/containerd/containerd.sock \
+  --containerd-worker-namespace=moby --containerd-worker-snapshotter=overlayfs
+```
+
+**Project setup** — copy `ci/Dockerfile.template` → `Dockerfile` (adjust the
+`build.tcl` and artifact path), vendor `ci/bitstream.mk` → your `ci/bitstream.mk`,
+add a `.dockerignore` that keeps the context small, and a `Makefile`:
+
+```makefile
+# GEN = <codegen>           # optional local codegen; omit if none
+include ci/bitstream.mk
+```
+
+**Build** (primary path — no runner):
+
+```sh
+make bit          # buildctl … --output type=local  ->  out/<name>.bit
+make bit-push PUSH_REF=<registry>/proj/bitstream:$(git rev-parse --short HEAD)
+```
+
+Set `BUILDKIT_ADDR` (e.g. `tcp://host:1234`) in the project Makefile or the
+environment (`BUILDKIT_HOST`); override `TARGET`, `OUT` as needed. This repo ships
+no infrastructure defaults — projects pin their own.
+
+**Or via act** — `.github/workflows/vivado-bitstream.yml` is a reusable workflow
+(`docker/setup-buildx-action` remote driver + `docker/build-push-action`) doing
+the same build. A project calls it from a tiny `workflow_dispatch`:
+
+```yaml
+jobs:
+  bitstream:
+    uses: Zubax/fpga-toolchain-docker/.github/workflows/vivado-bitstream.yml@main
+    with: { buildkit_endpoint: tcp://<host>:1234, target: artifact, outputs: type=local,dest=out }
+```
+
+Run codegen locally first, then
+`act workflow_dispatch -s GITHUB_TOKEN="$(gh auth token)"`.
+
 ## License
 
 The container glue in this repository is MIT licensed.

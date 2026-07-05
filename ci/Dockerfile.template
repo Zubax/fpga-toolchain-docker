@@ -1,0 +1,19 @@
+# syntax=docker/dockerfile:1
+# Template for remote BuildKit bitstream builds. Copy to your project as
+# `Dockerfile` and adjust the RUN (your build.tcl) and the artifact COPY path.
+# Build with `make bit` (see the shared ci/bitstream.mk). buildkitd on the build
+# host reuses the mega base from its containerd store — no re-pull.
+
+ARG IMAGE=containers.zubax.com/zubax-fpga-toolchain-mega:2026-07-02
+
+FROM ${IMAGE} AS build
+# COPY is root-owned and WORKDIR creates root-owned dirs, but the mega base runs
+# as user `ubuntu` — build as root so /work stays writable.
+USER root
+WORKDIR /work
+COPY . .
+RUN vivado -mode batch -source vivado/build.tcl -nolog -nojournal
+
+# Thin artifact stage: only the bitstream, so --output/registry stays tiny.
+FROM scratch AS artifact
+COPY --from=build /work/build/YOUR_BITSTREAM.bit /
