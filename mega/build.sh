@@ -10,8 +10,9 @@ TAG="${TAG:-$(date +%F)}"
 PLATFORM="${PLATFORM:-linux/amd64}"
 TAG_LATEST="${TAG_LATEST:-1}"
 REPO="${REGISTRY}/zubax-fpga-toolchain-mega"
-AMD_IMAGE="${AMD_IMAGE:-${REGISTRY}/zubax-fpga-toolchain-amd:${TAG}}"
-LATTICE_IMAGE="${LATTICE_IMAGE:-${REGISTRY}/zubax-fpga-toolchain-lattice:${TAG}}"
+OSS_IMAGE="${OSS_IMAGE:-ghcr.io/zubax/zubax-fpga-toolchain-oss:${TAG}}"
+AMD_IMAGE="${AMD_IMAGE:-${REGISTRY}/zubax-fpga-toolchain-amd:latest}"
+LATTICE_IMAGE="${LATTICE_IMAGE:-${REGISTRY}/zubax-fpga-toolchain-lattice:latest}"
 
 tags=(--tag "${REPO}:${TAG}")
 if [[ "${TAG_LATEST}" == "1" && "${TAG}" != "latest" ]]; then
@@ -19,13 +20,13 @@ if [[ "${TAG_LATEST}" == "1" && "${TAG}" != "latest" ]]; then
 fi
 
 echo "Building Mega image ${REPO}:${TAG}"
-echo "Mega uses AMD_IMAGE=${AMD_IMAGE} and LATTICE_IMAGE=${LATTICE_IMAGE}; preload them first."
+echo "Mega uses OSS_IMAGE=${OSS_IMAGE}, AMD_IMAGE=${AMD_IMAGE}, and LATTICE_IMAGE=${LATTICE_IMAGE}."
 docker buildx build \
     --platform "${PLATFORM}" \
     --load \
     --file Dockerfile \
     "${tags[@]}" \
+    --build-arg "OSS_IMAGE=${OSS_IMAGE}" \
     --build-arg "AMD_IMAGE=${AMD_IMAGE}" \
     --build-arg "LATTICE_IMAGE=${LATTICE_IMAGE}" \
-    --build-context "amd-wrapper=../amd" \
     .
