@@ -41,6 +41,7 @@ Refer to the Dockerfile for detailed version information.
 - SymbiYosys (`sby`)
 - Yices 2
 - Verible
+- Clang, clang-format, and clang-tidy
 - Icarus Verilog
 - Verilator
 - edalize

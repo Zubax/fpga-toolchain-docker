@@ -16,20 +16,20 @@
 ARG UBUNTU_VERSION=26.04
 FROM ubuntu:${UBUNTU_VERSION}
 
-# Pinned to latest published releases/heads as of 2026-07-02.
-ARG YOSYS_REF=v0.66
-ARG NEXTPNR_REF=nextpnr-0.10
+# Pinned to latest published releases/heads as of 2026-08-25.
+ARG YOSYS_REF=v0.68
+ARG NEXTPNR_REF=nextpnr-0.11.1
 ARG YICES2_REF=yices-2.7.0
 # prjtrellis hasn't tagged a release since 1.4 (2023), but its main branch is the
-# only branch nextpnr-0.10 will build against. Pin to a recent main commit.
-ARG PRJTRELLIS_REF=56bb17047cd8b062f784de8666ceb3f90f77f77a
+# appropriate source for current nextpnr releases. Pin to a recent main commit.
+ARG PRJTRELLIS_REF=3afe7b52b30f4b4417ee98f03016767a502006e3
 # sby has no tagged releases; pin to a recent main commit.
-ARG SBY_REF=d3e72d26e8634bca4ca16f3e4d84331481f06ab6
-ARG VERIBLE_VERSION=v0.0-4080-ga0a8d8eb
+ARG SBY_REF=b1a1e98cba941ec8433f8dc27f416cd7bb7f14be
+ARG VERIBLE_VERSION=v0.0-4148-g1ea007ec
 ARG BITWUZLA_VERSION=0.9.1
 # nextpnr-xilinx and prjxray have no tagged releases; pin to recent commits. nextpnr-xilinx tracks the
 # openXC7 fork, which (unlike gatecat's) ships Spartan-7 site metadata + prjxray-db in its submodules.
-ARG NEXTPNR_XILINX_REF=1743d0f4b2d796b9c866bcc5bc1e4a2c9e79b472
+ARG NEXTPNR_XILINX_REF=7b03f6ee9b3d83777baddf48b06ed7860bd4199c
 ARG PRJXRAY_REF=c9f02d8576042325425824647ab5555b1bc77833
 ARG OPENFPGALOADER_REF=v1.1.1
 
@@ -44,7 +44,7 @@ LABEL org.opencontainers.image.description="Open-source FPGA synthesis, P&R and 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates curl wget gnupg sudo locales tzdata unzip \
         git make pkg-config autoconf gperf \
-        build-essential clang cmake bison flex libfl-dev gawk \
+        build-essential clang clang-format clang-tidy cmake bison flex libfl-dev gawk \
         tcl-dev libreadline-dev libffi-dev zlib1g-dev libgmp-dev \
         libboost-all-dev libeigen3-dev \
         python3 python3-dev python3-pip python3-setuptools \
@@ -95,9 +95,11 @@ RUN git clone --recurse-submodules https://github.com/YosysHQ/yosys.git /tmp/yos
     && cd /tmp/yosys \
     && git checkout "${YOSYS_REF}" \
     && git submodule update --init --recursive \
-    && make config-gcc \
-    && make -j"$(nproc)" PREFIX=/usr/local \
-    && make install PREFIX=/usr/local \
+    && cmake -S . -B build \
+             -DCMAKE_INSTALL_PREFIX=/usr/local \
+             -DCMAKE_BUILD_TYPE=Release \
+    && cmake --build build --config Release --parallel "$(nproc)" \
+    && cmake --install build --strip \
     && rm -rf /tmp/yosys
 
 # ---------------------------------------------------------------------------
@@ -295,6 +297,10 @@ RUN set -eux; \
     test -f /opt/nextpnr-xilinx/xilinx/external/nextpnr-xilinx-meta/spartan7/wire_intents.json; \
     test -d /opt/nextpnr-xilinx/xilinx/external/prjxray-db/spartan7; \
     openFPGALoader --Version; \
+    clang-format --version; \
+    clang-tidy --version; \
+    curl --version | head -n1; \
+    wget --version | head -n1; \
     iverilog -V 2>&1 | head -n1; \
     # Assert the source-built Verilator (not apt's older one) is the one on PATH.
     verilator --version; \
