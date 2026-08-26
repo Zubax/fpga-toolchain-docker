@@ -107,7 +107,7 @@ docker run --rm --cap-add NET_ADMIN \
     vivado -version
 ```
 
-The repository's `run.sh` grants the capability automatically for AMD images.
+The repository's `run.sh` grants the capability automatically for AMD and Mega images.
 
 ## License
 

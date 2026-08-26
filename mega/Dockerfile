@@ -18,7 +18,6 @@ FROM ${AMD_IMAGE} AS amd
 FROM ${LATTICE_IMAGE} AS lattice
 FROM ${OSS_IMAGE}
 
-ARG VIVADO_VERSION=2025.2.1
 ARG DIAMOND_VERSION=3.14
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -27,8 +26,9 @@ LABEL org.opencontainers.image.description="Zubax FPGA mega toolchain with open-
 
 USER root
 
-COPY --from=amd /opt/Xilinx/${VIVADO_VERSION}/ /opt/Xilinx/${VIVADO_VERSION}/
-COPY --from=amd /usr/local/bin/amd-tool /usr/local/bin/amd-tool
+COPY --from=amd /opt/Xilinx/ /opt/Xilinx/
+COPY --from=amd /usr/local/bin/amd-tool /usr/local/bin/amd-net-init /usr/local/bin/
+COPY --from=amd --chown=ubuntu:ubuntu /home/ubuntu/.Xilinx/ /home/ubuntu/.Xilinx/
 COPY --from=lattice /usr/local/diamond/${DIAMOND_VERSION}/ /usr/local/diamond/${DIAMOND_VERSION}/
 COPY --from=lattice /usr/local/bin/diamond-env /usr/local/bin/diamond-env
 COPY --from=lattice /usr/local/bin/diamond-tool /usr/local/bin/diamond-tool
@@ -39,7 +39,11 @@ RUN set -eux; \
     apt-get install -y --no-install-recommends iproute2 xvfb xauth; \
     apt-get clean; \
     rm -rf /var/lib/apt/lists/*; \
-    chmod 0755 /usr/local/bin/amd-tool /usr/local/bin/diamond-env /usr/local/bin/diamond-tool /usr/local/bin/diamond-net-init; \
+    chmod 0755 /usr/local/bin/amd-tool /usr/local/bin/amd-net-init /usr/local/bin/diamond-env /usr/local/bin/diamond-tool /usr/local/bin/diamond-net-init; \
+    vivado_root="$(find /opt/Xilinx -mindepth 2 -maxdepth 2 -type d -name Vivado -print | LC_ALL=C sort -V | tail -n 1)"; \
+    test -n "${vivado_root}"; \
+    vivado_release="$(basename "$(dirname "${vivado_root}")")"; \
+    ln -s "${vivado_release}" /opt/Xilinx/current; \
     ln -sf /usr/local/bin/amd-tool /usr/local/bin/vivado-env; \
     for tool in \
         vivado xvlog xelab xsim xvhdl xsc xtclsh xsdb hw_server bootgen updatemem \
@@ -56,17 +60,19 @@ RUN set -eux; \
         ln -sf /usr/local/bin/diamond-tool "/usr/local/bin/${tool}"; \
     done; \
     test -f "/usr/local/diamond/${DIAMOND_VERSION}/license/license.dat"; \
-    test -x "/opt/Xilinx/${VIVADO_VERSION}/Vivado/bin/vivado"; \
+    test -x /opt/Xilinx/current/Vivado/bin/vivado; \
+    test -x /usr/local/bin/amd-net-init; \
+    test -f /home/ubuntu/.Xilinx/Xilinx.lic; \
+    test "$(stat -c '%a:%U:%G' /home/ubuntu/.Xilinx/Xilinx.lic)" = 600:ubuntu:ubuntu; \
     yosys -V | grep -q 'Yosys 0.68'; \
     clang-format --version; \
     clang-tidy --version; \
-    printf '%s\n' 'puts [version -short]' 'exit' > /tmp/vivado-smoke.tcl; \
-    vivado -mode batch -nojournal -nolog -notrace -source /tmp/vivado-smoke.tcl | grep -qx "${VIVADO_VERSION}"; \
-    rm -f /tmp/vivado-smoke.tcl; \
+    VIVADO_SKIP_NET_INIT=1 vivado -version | grep -Eqi '^vivado v[0-9]+\.[0-9]+(\.[0-9]+)?'; \
     diamond-env par -h | head -n1 | grep -q 'version Diamond'; \
     lmutil lmhostid >/dev/null
 
-ENV XILINX_VIVADO=/opt/Xilinx/${VIVADO_VERSION}/Vivado \
+ENV XILINX_VIVADO=/opt/Xilinx/current/Vivado \
+    XILINXD_LICENSE_FILE=/home/ubuntu/.Xilinx/Xilinx.lic \
     DIAMOND_ROOT=/usr/local/diamond/${DIAMOND_VERSION}
 
 USER ubuntu
