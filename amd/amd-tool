@@ -21,10 +21,6 @@ if [[ ! -d "${XILINX_VIVADO}" ]]; then
     exit 127
 fi
 
-if [[ "${VIVADO_SKIP_NET_INIT:-0}" != "1" ]] && command -v amd-net-init >/dev/null 2>&1; then
-    amd-net-init true || true
-fi
-
 export PATH="${XILINX_VIVADO}/bin:${PATH}"
 if [[ -d "${compat_lib}" ]]; then
     export LD_LIBRARY_PATH="${compat_lib}${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"

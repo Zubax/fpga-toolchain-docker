@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Configure a runtime NIC for the node-locked Vivado license embedded in the image.
+# Configure the node-locked Vivado license once at container startup.
 
 set -euo pipefail
 
@@ -16,7 +16,7 @@ normalize_mac() {
 }
 
 license_mac() {
-    local license_file="${XILINXD_LICENSE_FILE:-/home/ubuntu/.Xilinx/Xilinx.lic}"
+    local license_file="${XILINXD_LICENSE_FILE:-/opt/Xilinx/license/Xilinx.lic}"
 
     if [[ -n "${VIVADO_LICENSE_MAC:-}" ]]; then
         printf '%s\n' "${VIVADO_LICENSE_MAC}"
@@ -24,6 +24,7 @@ license_mac() {
     fi
     [[ -r "${license_file}" ]] || return 1
     awk '{
+        gsub(/\r/, "")
         for (i = 1; i <= NF; i++) {
             if ($i ~ /^HOSTID=[[:xdigit:]]{12}$/) {
                 sub(/^HOSTID=/, "", $i)
@@ -35,25 +36,26 @@ license_mac() {
 }
 
 setup_license_mac() {
-    local raw mac output current_mac
+    local raw mac output address current_mac
     raw="$(license_mac)" || {
-        echo "warning: cannot determine the node-locked Vivado license MAC" >&2
-        return 0
+        echo "cannot determine the node-locked Vivado license MAC" >&2
+        return 1
     }
-    mac="$(normalize_mac "${raw}")" || return 0
+    mac="$(normalize_mac "${raw}")"
 
-    if [[ -r /sys/class/net/eth0/address ]]; then
-        read -r current_mac </sys/class/net/eth0/address
+    for address in /sys/class/net/*/address; do
+        [[ -r "${address}" ]] || continue
+        read -r current_mac <"${address}"
         if [[ "${current_mac,,}" == "${mac,,}" ]]; then
             return 0
         fi
-    fi
+    done
 
     ip_cmd=(ip)
     if [[ "$(id -u)" != "0" ]]; then
         if ! command -v sudo >/dev/null 2>&1; then
-            echo "warning: cannot configure the Vivado license MAC: sudo is unavailable" >&2
-            return 0
+            echo "cannot configure the Vivado license MAC: sudo is unavailable" >&2
+            return 1
         fi
         ip_cmd=(sudo -n ip)
     fi
@@ -62,26 +64,34 @@ setup_license_mac() {
         if output="$("${ip_cmd[@]}" link set dev eth0 address "${mac}" 2>&1)"; then
             return 0
         fi
-        echo "warning: cannot set eth0 MAC for the Vivado license: ${output}" >&2
+        echo "cannot set eth0 MAC for the Vivado license: ${output}" >&2
     fi
 
     if ! "${ip_cmd[@]}" link show vivado-license0 >/dev/null 2>&1; then
         if ! output="$("${ip_cmd[@]}" link add vivado-license0 type dummy 2>&1)"; then
-            echo "warning: cannot create a NIC for the Vivado license: ${output}" >&2
-            return 0
+            echo "cannot create a NIC for the Vivado license (NET_ADMIN is required): ${output}" >&2
+            return 1
         fi
     fi
     if ! output="$("${ip_cmd[@]}" link set dev vivado-license0 address "${mac}" 2>&1)"; then
-        echo "warning: cannot set the Vivado license NIC MAC: ${output}" >&2
-        return 0
+        echo "cannot set the Vivado license NIC MAC: ${output}" >&2
+        return 1
     fi
     if ! output="$("${ip_cmd[@]}" link set dev vivado-license0 up 2>&1)"; then
-        echo "warning: cannot bring up the Vivado license NIC: ${output}" >&2
-        return 0
+        echo "cannot bring up the Vivado license NIC: ${output}" >&2
+        return 1
     fi
 }
 
-setup_license_mac
+state_file=/run/amd-net-init/done
+exec {net_init_lock_fd}<"$0"
+flock --exclusive "${net_init_lock_fd}"
+if [[ ! -e "${state_file}" ]]; then
+    setup_license_mac
+    : >"${state_file}"
+fi
+flock --unlock "${net_init_lock_fd}"
+exec {net_init_lock_fd}<&-
 
 if (($# > 0)); then
     exec "$@"

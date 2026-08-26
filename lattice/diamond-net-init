@@ -3,8 +3,6 @@
 
 set -euo pipefail
 
-DEFAULT_LATTICE_DUMMY_MAC="448a5b83240e"
-
 normalize_mac() {
     local raw="${1//:/}"
     raw="${raw//-/}"
@@ -17,16 +15,47 @@ normalize_mac() {
         "${raw:6:2}" "${raw:8:2}" "${raw:10:2}"
 }
 
+license_mac() {
+    local license_file="${LATTICE_LICENSE_FILE:-${DIAMOND_ROOT:-/usr/local/diamond/3.14}/license/license.dat}"
+
+    if [[ -n "${LATTICE_DUMMY_MAC:-}" ]]; then
+        printf '%s\n' "${LATTICE_DUMMY_MAC}"
+        return
+    fi
+    [[ -r "${license_file}" ]] || return 1
+    awk '{
+        gsub(/\r/, "")
+        for (i = 1; i <= NF; i++) {
+            if ($i ~ /^HOSTID=[[:xdigit:]]{12}$/) {
+                sub(/^HOSTID=/, "", $i)
+                print $i
+                exit
+            }
+        }
+    }' "${license_file}"
+}
+
 setup_license_mac() {
-    local mac raw output
-    raw="${LATTICE_DUMMY_MAC:-${DEFAULT_LATTICE_DUMMY_MAC}}"
-    mac="$(normalize_mac "${raw}")" || return 0
+    local mac raw output address current_mac
+    raw="$(license_mac)" || {
+        echo "cannot determine the node-locked Diamond license MAC" >&2
+        return 1
+    }
+    mac="$(normalize_mac "${raw}")"
+
+    for address in /sys/class/net/*/address; do
+        [[ -r "${address}" ]] || continue
+        read -r current_mac <"${address}"
+        if [[ "${current_mac,,}" == "${mac,,}" ]]; then
+            return 0
+        fi
+    done
 
     ip_cmd=(ip)
     if [[ "$(id -u)" != "0" ]]; then
         if ! command -v sudo >/dev/null 2>&1; then
-            echo "warning: cannot configure dummy0 for Diamond license: sudo is unavailable" >&2
-            return 0
+            echo "cannot configure the Diamond license MAC: sudo is unavailable" >&2
+            return 1
         fi
         ip_cmd=(sudo -n ip)
     fi
@@ -35,26 +64,34 @@ setup_license_mac() {
         if output="$("${ip_cmd[@]}" link set dev eth0 address "${mac}" 2>&1)"; then
             return 0
         fi
-        echo "warning: cannot set eth0 MAC for Diamond license: ${output}" >&2
+        echo "cannot set eth0 MAC for the Diamond license: ${output}" >&2
     fi
 
-    if ! "${ip_cmd[@]}" link show dummy0 >/dev/null 2>&1; then
-        if ! output="$("${ip_cmd[@]}" link add dummy0 type dummy 2>&1)"; then
-            echo "warning: cannot create dummy0 for Diamond license: ${output}" >&2
-            return 0
+    if ! "${ip_cmd[@]}" link show diamond-lic0 >/dev/null 2>&1; then
+        if ! output="$("${ip_cmd[@]}" link add diamond-lic0 type dummy 2>&1)"; then
+            echo "cannot create a NIC for the Diamond license (NET_ADMIN is required): ${output}" >&2
+            return 1
         fi
     fi
-    if ! output="$("${ip_cmd[@]}" link set dev dummy0 address "${mac}" 2>&1)"; then
-        echo "warning: cannot set dummy0 MAC for Diamond license: ${output}" >&2
-        return 0
+    if ! output="$("${ip_cmd[@]}" link set dev diamond-lic0 address "${mac}" 2>&1)"; then
+        echo "cannot set the Diamond license NIC MAC: ${output}" >&2
+        return 1
     fi
-    if ! output="$("${ip_cmd[@]}" link set dev dummy0 up 2>&1)"; then
-        echo "warning: cannot bring up dummy0 for Diamond license: ${output}" >&2
-        return 0
+    if ! output="$("${ip_cmd[@]}" link set dev diamond-lic0 up 2>&1)"; then
+        echo "cannot bring up the Diamond license NIC: ${output}" >&2
+        return 1
     fi
 }
 
-setup_license_mac
+state_file=/run/diamond-net-init/done
+exec {net_init_lock_fd}<"$0"
+flock --exclusive "${net_init_lock_fd}"
+if [[ ! -e "${state_file}" ]]; then
+    setup_license_mac
+    : >"${state_file}"
+fi
+flock --unlock "${net_init_lock_fd}"
+exec {net_init_lock_fd}<&-
 
 if (($# > 0)); then
     exec "$@"

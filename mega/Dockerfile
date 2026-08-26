@@ -28,18 +28,21 @@ USER root
 
 COPY --from=amd /opt/Xilinx/ /opt/Xilinx/
 COPY --from=amd /usr/local/bin/amd-tool /usr/local/bin/amd-net-init /usr/local/bin/
-COPY --from=amd --chown=ubuntu:ubuntu /home/ubuntu/.Xilinx/ /home/ubuntu/.Xilinx/
 COPY --from=lattice /usr/local/diamond/${DIAMOND_VERSION}/ /usr/local/diamond/${DIAMOND_VERSION}/
 COPY --from=lattice /usr/local/bin/diamond-env /usr/local/bin/diamond-env
 COPY --from=lattice /usr/local/bin/diamond-tool /usr/local/bin/diamond-tool
 COPY --from=lattice /usr/local/bin/diamond-net-init /usr/local/bin/diamond-net-init
+COPY mega-entrypoint /usr/local/bin/mega-entrypoint
 
 RUN set -eux; \
     apt-get update; \
-    apt-get install -y --no-install-recommends iproute2 xvfb xauth; \
+    apt-get install -y --no-install-recommends iproute2 util-linux xvfb xauth; \
     apt-get clean; \
     rm -rf /var/lib/apt/lists/*; \
-    chmod 0755 /usr/local/bin/amd-tool /usr/local/bin/amd-net-init /usr/local/bin/diamond-env /usr/local/bin/diamond-tool /usr/local/bin/diamond-net-init; \
+    install -d -m 1777 /run/amd-net-init; \
+    install -d -m 1777 /run/diamond-net-init; \
+    test -x "$(command -v flock)"; \
+    chmod 0755 /usr/local/bin/amd-tool /usr/local/bin/amd-net-init /usr/local/bin/diamond-env /usr/local/bin/diamond-tool /usr/local/bin/diamond-net-init /usr/local/bin/mega-entrypoint; \
     vivado_root="$(find /opt/Xilinx -mindepth 2 -maxdepth 2 -type d -name Vivado -print | LC_ALL=C sort -V | tail -n 1)"; \
     test -n "${vivado_root}"; \
     vivado_release="$(basename "$(dirname "${vivado_root}")")"; \
@@ -61,20 +64,30 @@ RUN set -eux; \
     done; \
     test -f "/usr/local/diamond/${DIAMOND_VERSION}/license/license.dat"; \
     test -x /opt/Xilinx/current/Vivado/bin/vivado; \
-    test -x /usr/local/bin/amd-net-init; \
-    test -f /home/ubuntu/.Xilinx/Xilinx.lic; \
-    test "$(stat -c '%a:%U:%G' /home/ubuntu/.Xilinx/Xilinx.lic)" = 600:ubuntu:ubuntu; \
+    test -f /opt/Xilinx/license/Xilinx.lic; \
+    test "$(stat -c '%a:%U:%G' /opt/Xilinx/license/Xilinx.lic)" = 444:root:root; \
+    license_hostid() { \
+        awk '{ gsub(/\r/, ""); for (i = 1; i <= NF; i++) if ($i ~ /^HOSTID=[[:xdigit:]]{12}$/) { sub(/^HOSTID=/, "", $i); print tolower($i); exit } }' "$1"; \
+    }; \
+    vivado_hostid="$(license_hostid /opt/Xilinx/license/Xilinx.lic)"; \
+    diamond_hostid="$(license_hostid "/usr/local/diamond/${DIAMOND_VERSION}/license/license.dat")"; \
+    test -n "${vivado_hostid}"; \
+    test "${vivado_hostid}" = "${diamond_hostid}"; \
+    HOME=/tmp/mega-root-test test -x "$(command -v pnmainc)"; \
+    HOME=/tmp/mega-root-test test -x "$(command -v par)"; \
+    HOME=/tmp/mega-root-test test -x "$(command -v diamond)"; \
     yosys -V | grep -q 'Yosys 0.68'; \
     clang-format --version; \
     clang-tidy --version; \
-    VIVADO_SKIP_NET_INIT=1 vivado -version | grep -Eqi '^vivado v[0-9]+\.[0-9]+(\.[0-9]+)?'; \
+    vivado -version | grep -Eqi '^vivado v[0-9]+\.[0-9]+(\.[0-9]+)?'; \
     diamond-env par -h | head -n1 | grep -q 'version Diamond'; \
     lmutil lmhostid >/dev/null
 
 ENV XILINX_VIVADO=/opt/Xilinx/current/Vivado \
-    XILINXD_LICENSE_FILE=/home/ubuntu/.Xilinx/Xilinx.lic \
+    XILINXD_LICENSE_FILE=/opt/Xilinx/license/Xilinx.lic \
     DIAMOND_ROOT=/usr/local/diamond/${DIAMOND_VERSION}
 
 USER ubuntu
 WORKDIR /home/ubuntu
+ENTRYPOINT ["/usr/local/bin/mega-entrypoint"]
 CMD ["/bin/bash"]

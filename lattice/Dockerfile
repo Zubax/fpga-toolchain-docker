@@ -27,9 +27,11 @@ COPY diamond-env diamond-tool diamond-net-init /usr/local/bin/
 
 RUN set -eux; \
     apt-get update; \
-    apt-get install -y --no-install-recommends iproute2 xvfb xauth; \
+    apt-get install -y --no-install-recommends iproute2 util-linux xvfb xauth; \
     apt-get clean; \
     rm -rf /var/lib/apt/lists/*; \
+    install -d -m 1777 /run/diamond-net-init; \
+    test -x "$(command -v flock)"; \
     chmod 0755 /usr/local/bin/diamond-env /usr/local/bin/diamond-tool /usr/local/bin/diamond-net-init; \
     mkdir -p /lib64; \
     ln -sf /lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 /lib64/ld-lsb-x86-64.so.3; \
@@ -47,4 +49,5 @@ ENV DIAMOND_ROOT=/usr/local/diamond/${DIAMOND_VERSION}
 
 USER ubuntu
 WORKDIR /home/ubuntu
+ENTRYPOINT ["/usr/local/bin/diamond-net-init"]
 CMD ["/bin/bash"]

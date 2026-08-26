@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Initialize both node-locked toolchains once before starting the container command.
+
+set -euo pipefail
+
+amd-net-init true
+exec diamond-net-init "$@"

@@ -10,7 +10,7 @@ TAG="${TAG:-$(date +%F)}"
 PLATFORM="${PLATFORM:-linux/amd64}"
 TAG_LATEST="${TAG_LATEST:-1}"
 REPO="${REGISTRY}/zubax-fpga-toolchain-amd"
-OSS_IMAGE="${OSS_IMAGE:-ghcr.io/zubax/zubax-fpga-toolchain-oss:${TAG}}"
+OSS_IMAGE="${OSS_IMAGE:-ghcr.io/zubax/zubax-fpga-toolchain-oss:latest}"
 
 vivado_version() {
     "${1}/Vivado/bin/vivado" -version 2>/dev/null \

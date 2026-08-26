@@ -23,17 +23,20 @@ COPY --from=vivado-src / /opt/Xilinx/${VIVADO_VERSION}/
 COPY amd-tool amd-net-init /usr/local/bin/
 
 ENV XILINX_VIVADO=/opt/Xilinx/${VIVADO_VERSION}/Vivado \
-    XILINXD_LICENSE_FILE=/home/ubuntu/.Xilinx/Xilinx.lic
+    XILINXD_LICENSE_FILE=/opt/Xilinx/license/Xilinx.lic
 
 RUN --mount=type=secret,id=vivado-license,required=true set -eux; \
     test -n "${VIVADO_VERSION}"; \
     test -n "${VIVADO_LICENSE_SHA256}"; \
     apt-get update; \
-    apt-get install -y --no-install-recommends iproute2; \
+    apt-get install -y --no-install-recommends iproute2 util-linux; \
     apt-get clean; \
     rm -rf /var/lib/apt/lists/*; \
-    install -d -m 0700 -o ubuntu -g ubuntu /home/ubuntu/.Xilinx; \
-    install -m 0600 -o ubuntu -g ubuntu /run/secrets/vivado-license "${XILINXD_LICENSE_FILE}"; \
+    install -d -m 0755 /opt/Xilinx/license; \
+    install -m 0444 /run/secrets/vivado-license "${XILINXD_LICENSE_FILE}"; \
+    test "$(sha256sum "${XILINXD_LICENSE_FILE}" | cut -d ' ' -f 1)" = "${VIVADO_LICENSE_SHA256}"; \
+    install -d -m 1777 /run/amd-net-init; \
+    test -x "$(command -v flock)"; \
     chmod 0755 /usr/local/bin/amd-tool /usr/local/bin/amd-net-init; \
     ln -sf /usr/local/bin/amd-tool /usr/local/bin/vivado-env; \
     for tool in \
@@ -44,8 +47,9 @@ RUN --mount=type=secret,id=vivado-license,required=true set -eux; \
     done; \
     test -x "/opt/Xilinx/${VIVADO_VERSION}/Vivado/bin/vivado"; \
     test -f "/opt/Xilinx/${VIVADO_VERSION}/Vivado/lib/lnx64.o/Ubuntu/24/libncurses.so.5"; \
-    VIVADO_SKIP_NET_INIT=1 vivado -version | grep -q "vivado v${VIVADO_VERSION}"
+    vivado -version | grep -q "vivado v${VIVADO_VERSION}"
 
 USER ubuntu
 WORKDIR /home/ubuntu
+ENTRYPOINT ["/usr/local/bin/amd-net-init"]
 CMD ["/bin/bash"]
