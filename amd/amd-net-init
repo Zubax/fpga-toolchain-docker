@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+# Configure a runtime NIC for the node-locked Vivado license embedded in the image.
+
+set -euo pipefail
+
+normalize_mac() {
+    local raw="${1//:/}"
+    raw="${raw//-/}"
+    if [[ ! "${raw}" =~ ^[[:xdigit:]]{12}$ ]]; then
+        echo "Invalid Vivado license MAC address" >&2
+        return 1
+    fi
+    printf '%s:%s:%s:%s:%s:%s\n' \
+        "${raw:0:2}" "${raw:2:2}" "${raw:4:2}" \
+        "${raw:6:2}" "${raw:8:2}" "${raw:10:2}"
+}
+
+license_mac() {
+    local license_file="${XILINXD_LICENSE_FILE:-/home/ubuntu/.Xilinx/Xilinx.lic}"
+
+    if [[ -n "${VIVADO_LICENSE_MAC:-}" ]]; then
+        printf '%s\n' "${VIVADO_LICENSE_MAC}"
+        return
+    fi
+    [[ -r "${license_file}" ]] || return 1
+    awk '{
+        for (i = 1; i <= NF; i++) {
+            if ($i ~ /^HOSTID=[[:xdigit:]]{12}$/) {
+                sub(/^HOSTID=/, "", $i)
+                print $i
+                exit
+            }
+        }
+    }' "${license_file}"
+}
+
+setup_license_mac() {
+    local raw mac output current_mac
+    raw="$(license_mac)" || {
+        echo "warning: cannot determine the node-locked Vivado license MAC" >&2
+        return 0
+    }
+    mac="$(normalize_mac "${raw}")" || return 0
+
+    if [[ -r /sys/class/net/eth0/address ]]; then
+        read -r current_mac </sys/class/net/eth0/address
+        if [[ "${current_mac,,}" == "${mac,,}" ]]; then
+            return 0
+        fi
+    fi
+
+    ip_cmd=(ip)
+    if [[ "$(id -u)" != "0" ]]; then
+        if ! command -v sudo >/dev/null 2>&1; then
+            echo "warning: cannot configure the Vivado license MAC: sudo is unavailable" >&2
+            return 0
+        fi
+        ip_cmd=(sudo -n ip)
+    fi
+
+    if "${ip_cmd[@]}" link show eth0 >/dev/null 2>&1; then
+        if output="$("${ip_cmd[@]}" link set dev eth0 address "${mac}" 2>&1)"; then
+            return 0
+        fi
+        echo "warning: cannot set eth0 MAC for the Vivado license: ${output}" >&2
+    fi
+
+    if ! "${ip_cmd[@]}" link show vivado-license0 >/dev/null 2>&1; then
+        if ! output="$("${ip_cmd[@]}" link add vivado-license0 type dummy 2>&1)"; then
+            echo "warning: cannot create a NIC for the Vivado license: ${output}" >&2
+            return 0
+        fi
+    fi
+    if ! output="$("${ip_cmd[@]}" link set dev vivado-license0 address "${mac}" 2>&1)"; then
+        echo "warning: cannot set the Vivado license NIC MAC: ${output}" >&2
+        return 0
+    fi
+    if ! output="$("${ip_cmd[@]}" link set dev vivado-license0 up 2>&1)"; then
+        echo "warning: cannot bring up the Vivado license NIC: ${output}" >&2
+        return 0
+    fi
+}
+
+setup_license_mac
+
+if (($# > 0)); then
+    exec "$@"
+fi
+
+exec /bin/bash

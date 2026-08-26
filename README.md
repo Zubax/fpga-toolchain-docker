@@ -95,6 +95,20 @@ docker run --rm --cap-add NET_ADMIN \
     ...
 ```
 
+## zubax-fpga-toolchain-amd
+
+The private AMD image contains its Vivado license. The wrapper reads the node-locked MAC from that license and
+configures the container network before launching AMD tools. Grant `NET_ADMIN` when invoking the image directly:
+
+```sh
+docker run --rm --cap-add NET_ADMIN \
+    -v "$PWD":/work -w /work \
+    containers.zubax.com/zubax-fpga-toolchain-amd:latest \
+    vivado -version
+```
+
+The repository's `run.sh` grants the capability automatically for AMD images.
+
 ## License
 
 The container glue in this repository is MIT licensed.

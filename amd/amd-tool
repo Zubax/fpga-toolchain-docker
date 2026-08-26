@@ -3,12 +3,26 @@
 
 set -euo pipefail
 
-export XILINX_VIVADO="${XILINX_VIVADO:-/opt/Xilinx/2025.2.1/Vivado}"
+if [[ -z "${XILINX_VIVADO:-}" ]]; then
+    mapfile -t vivado_roots < <(
+        find /opt/Xilinx -mindepth 2 -maxdepth 2 -type d -name Vivado -print 2>/dev/null | LC_ALL=C sort -V
+    )
+    ((${#vivado_roots[@]} > 0)) || {
+        echo "Could not find Vivado under /opt/Xilinx" >&2
+        exit 127
+    }
+    XILINX_VIVADO="${vivado_roots[${#vivado_roots[@]} - 1]}"
+fi
+export XILINX_VIVADO
 compat_lib="${XILINX_VIVADO}/lib/lnx64.o/Ubuntu/24"
 
 if [[ ! -d "${XILINX_VIVADO}" ]]; then
     echo "XILINX_VIVADO does not exist: ${XILINX_VIVADO}" >&2
     exit 127
+fi
+
+if [[ "${VIVADO_SKIP_NET_INIT:-0}" != "1" ]] && command -v amd-net-init >/dev/null 2>&1; then
+    amd-net-init true || true
 fi
 
 export PATH="${XILINX_VIVADO}/bin:${PATH}"
