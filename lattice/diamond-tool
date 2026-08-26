@@ -6,6 +6,7 @@ set -euo pipefail
 
 export DIAMOND_ROOT="${DIAMOND_ROOT:-/usr/local/diamond/3.14}"
 tool="$(basename "$0")"
+/usr/local/bin/diamond-net-init true
 
 if [[ "${tool}" == "diamond-tool" ]]; then
     exec diamond-env "$@"

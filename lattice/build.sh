@@ -11,7 +11,7 @@ PLATFORM="${PLATFORM:-linux/amd64}"
 TAG_LATEST="${TAG_LATEST:-1}"
 DIAMOND_CONTEXT="${DIAMOND_CONTEXT:-/usr/local/diamond/3.14}"
 REPO="${REGISTRY}/zubax-fpga-toolchain-lattice"
-OSS_IMAGE="${OSS_IMAGE:-ghcr.io/zubax/zubax-fpga-toolchain-oss:${TAG}}"
+OSS_IMAGE="${OSS_IMAGE:-ghcr.io/zubax/zubax-fpga-toolchain-oss:latest}"
 
 [[ -f "${DIAMOND_CONTEXT}/license/license.dat" ]] || {
     echo "ERROR: Diamond license not found: ${DIAMOND_CONTEXT}/license/license.dat" >&2

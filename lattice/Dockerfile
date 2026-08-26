@@ -31,6 +31,7 @@ RUN set -eux; \
     apt-get clean; \
     rm -rf /var/lib/apt/lists/*; \
     install -d -m 1777 /run/diamond-net-init; \
+    install -m 0666 /dev/null /run/fpga-toolchain-net-init.lock; \
     test -x "$(command -v flock)"; \
     chmod 0755 /usr/local/bin/diamond-env /usr/local/bin/diamond-tool /usr/local/bin/diamond-net-init; \
     mkdir -p /lib64; \

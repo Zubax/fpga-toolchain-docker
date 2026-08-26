@@ -41,6 +41,7 @@ RUN set -eux; \
     rm -rf /var/lib/apt/lists/*; \
     install -d -m 1777 /run/amd-net-init; \
     install -d -m 1777 /run/diamond-net-init; \
+    install -m 0666 /dev/null /run/fpga-toolchain-net-init.lock; \
     test -x "$(command -v flock)"; \
     chmod 0755 /usr/local/bin/amd-tool /usr/local/bin/amd-net-init /usr/local/bin/diamond-env /usr/local/bin/diamond-tool /usr/local/bin/diamond-net-init /usr/local/bin/mega-entrypoint; \
     vivado_root="$(find /opt/Xilinx -mindepth 2 -maxdepth 2 -type d -name Vivado -print | LC_ALL=C sort -V | tail -n 1)"; \

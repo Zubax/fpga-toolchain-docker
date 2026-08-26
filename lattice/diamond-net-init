@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Optionally create a runtime dummy NIC for node-locked Diamond licenses.
+# Configure the node-locked Diamond license once, either lazily from a tool
+# wrapper or eagerly from the container entrypoint.
 
 set -euo pipefail
 
@@ -84,14 +85,20 @@ setup_license_mac() {
 }
 
 state_file=/run/diamond-net-init/done
-exec {net_init_lock_fd}<"$0"
-flock --exclusive "${net_init_lock_fd}"
+lock_file=/run/fpga-toolchain-net-init.lock
 if [[ ! -e "${state_file}" ]]; then
-    setup_license_mac
-    : >"${state_file}"
+    exec {net_init_lock_fd}<"${lock_file}"
+    flock --exclusive "${net_init_lock_fd}"
+    if [[ ! -e "${state_file}" ]]; then
+        if setup_license_mac; then
+            : >"${state_file}"
+        else
+            echo "WARNING: Diamond license network initialization failed; licensed Lattice tools may not work" >&2
+        fi
+    fi
+    flock --unlock "${net_init_lock_fd}"
+    exec {net_init_lock_fd}<&-
 fi
-flock --unlock "${net_init_lock_fd}"
-exec {net_init_lock_fd}<&-
 
 if (($# > 0)); then
     exec "$@"

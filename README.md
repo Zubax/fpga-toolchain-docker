@@ -68,9 +68,10 @@ Pass the resulting `.bin` to `nextpnr-xilinx --chipdb xc7s50.bin ...`. Regenerat
 
 ## zubax-fpga-toolchain-lattice
 
-The Diamond license is bound to a NIC MAC address. The container entrypoint reads the MAC from the embedded license
-and configures `eth0` once when the container starts. This requires `NET_ADMIN`, so workflows that need Diamond
-should grant the capability:
+The Diamond license is bound to a NIC MAC address. The container entrypoint and Diamond tool launchers lazily
+configure a matching container NIC once per container. This remains reliable when a job-container runtime such as
+GitHub Actions replaces the image entrypoint. Network initialization is best-effort so commands unrelated to licensed
+tools still run without `NET_ADMIN`; workflows that need Diamond should grant the capability:
 
 ```sh
 docker run --rm --cap-add NET_ADMIN \
@@ -88,8 +89,10 @@ IMAGE=containers.zubax.com/zubax-fpga-toolchain-mega:latest ./run.sh make verify
 ## zubax-fpga-toolchain-amd
 
 Vivado 2026.1 requires a license even for the free BASIC tier. The private AMD image stores that license under
-`/opt/Xilinx`, outside user home directories. Its entrypoint reads the node-locked MAC from the license and configures
-the container network once at startup. Grant `NET_ADMIN` when invoking the image directly:
+`/opt/Xilinx`, outside user home directories. Its entrypoint and AMD tool launchers lazily configure the node-locked
+MAC once per container, including when a job-container runtime replaces the entrypoint. Network initialization is
+best-effort so commands unrelated to licensed tools still run without `NET_ADMIN`. Grant the capability when invoking
+licensed tools directly:
 
 ```sh
 docker run --rm --cap-add NET_ADMIN \

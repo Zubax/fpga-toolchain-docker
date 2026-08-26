@@ -1,7 +1,15 @@
 #!/usr/bin/env bash
-# Initialize both node-locked toolchains once before starting the container command.
+# Best-effort convenience initialization for ordinary docker run usage. Licensed
+# tool wrappers also initialize lazily because job-container runtimes may replace
+# the image entrypoint.
 
 set -euo pipefail
 
-amd-net-init true
-exec diamond-net-init "$@"
+amd-net-init true || echo "WARNING: AMD license initialization helper failed" >&2
+diamond-net-init true || echo "WARNING: Diamond license initialization helper failed" >&2
+
+if (($# > 0)); then
+    exec "$@"
+fi
+
+exec /bin/bash

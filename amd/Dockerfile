@@ -36,6 +36,7 @@ RUN --mount=type=secret,id=vivado-license,required=true set -eux; \
     install -m 0444 /run/secrets/vivado-license "${XILINXD_LICENSE_FILE}"; \
     test "$(sha256sum "${XILINXD_LICENSE_FILE}" | cut -d ' ' -f 1)" = "${VIVADO_LICENSE_SHA256}"; \
     install -d -m 1777 /run/amd-net-init; \
+    install -m 0666 /dev/null /run/fpga-toolchain-net-init.lock; \
     test -x "$(command -v flock)"; \
     chmod 0755 /usr/local/bin/amd-tool /usr/local/bin/amd-net-init; \
     ln -sf /usr/local/bin/amd-tool /usr/local/bin/vivado-env; \

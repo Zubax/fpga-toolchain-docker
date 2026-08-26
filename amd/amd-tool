@@ -27,6 +27,8 @@ if [[ -d "${compat_lib}" ]]; then
 fi
 
 tool="$(basename "$0")"
+/usr/local/bin/amd-net-init true
+
 if [[ "${tool}" == "amd-tool" || "${tool}" == "vivado-env" ]]; then
     if (($# > 0)); then
         exec "$@"
