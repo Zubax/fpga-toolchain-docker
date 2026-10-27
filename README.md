@@ -5,7 +5,8 @@ This repository builds the Zubax FPGA toolchain images:
 - `zubax-fpga-toolchain-oss` - Open-source FPGA synthesis, PnR, verification, simulation, and programming tools.
 - `zubax-fpga-toolchain-amd` - OSS image plus AMD Vivado.
 - `zubax-fpga-toolchain-lattice` - OSS image plus Lattice Diamond.
-- `zubax-fpga-toolchain-mega` - EVERYTHING.
+- `zubax-fpga-toolchain-intel` - OSS image plus Altera Quartus Prime Lite.
+- `zubax-fpga-toolchain-mega` - EVERYTHING (OSS, AMD, Lattice, Intel).
 
 The containers are designed to be built separately,
 because it is understood that vendor tools may not always be available.
@@ -102,6 +103,20 @@ docker run --rm --cap-add NET_ADMIN \
 ```
 
 The repository's `run.sh` grants the capability automatically for AMD and Mega images.
+
+## zubax-fpga-toolchain-intel
+
+Quartus Prime Lite requires no license and needs no extra container capabilities.
+`build.sh` discovers the newest Quartus release root under `$HOME` or `/opt`
+(override with `QUARTUS_CONTEXT`). Only the `quartus/` and `ip/` subtrees are shipped;
+Questa FSE, Nios II EDS, RiscFree, and the standalone programmer are omitted.
+The Quartus binaries are on `PATH`:
+
+```sh
+docker run --rm -v "$PWD":/work -w /work \
+    containers.zubax.com/zubax-fpga-toolchain-intel:latest \
+    quartus_sh --flow compile my_project
+```
 
 ## License
 

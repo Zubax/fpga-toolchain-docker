@@ -13,6 +13,7 @@ REPO="${REGISTRY}/zubax-fpga-toolchain-mega"
 OSS_IMAGE="${OSS_IMAGE:-ghcr.io/zubax/zubax-fpga-toolchain-oss:latest}"
 AMD_IMAGE="${AMD_IMAGE:-${REGISTRY}/zubax-fpga-toolchain-amd:latest}"
 LATTICE_IMAGE="${LATTICE_IMAGE:-${REGISTRY}/zubax-fpga-toolchain-lattice:latest}"
+INTEL_IMAGE="${INTEL_IMAGE:-${REGISTRY}/zubax-fpga-toolchain-intel:latest}"
 
 tags=(--tag "${REPO}:${TAG}")
 if [[ "${TAG_LATEST}" == "1" && "${TAG}" != "latest" ]]; then
@@ -20,7 +21,7 @@ if [[ "${TAG_LATEST}" == "1" && "${TAG}" != "latest" ]]; then
 fi
 
 echo "Building Mega image ${REPO}:${TAG}"
-echo "Mega uses OSS_IMAGE=${OSS_IMAGE}, AMD_IMAGE=${AMD_IMAGE}, and LATTICE_IMAGE=${LATTICE_IMAGE}."
+echo "Mega uses OSS_IMAGE=${OSS_IMAGE}, AMD_IMAGE=${AMD_IMAGE}, LATTICE_IMAGE=${LATTICE_IMAGE}, and INTEL_IMAGE=${INTEL_IMAGE}."
 docker buildx build \
     --platform "${PLATFORM}" \
     --load \
@@ -29,4 +30,5 @@ docker buildx build \
     --build-arg "OSS_IMAGE=${OSS_IMAGE}" \
     --build-arg "AMD_IMAGE=${AMD_IMAGE}" \
     --build-arg "LATTICE_IMAGE=${LATTICE_IMAGE}" \
+    --build-arg "INTEL_IMAGE=${INTEL_IMAGE}" \
     .

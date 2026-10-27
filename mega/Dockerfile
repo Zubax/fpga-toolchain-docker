@@ -8,21 +8,24 @@
 #       --build-arg OSS_IMAGE=ghcr.io/zubax/zubax-fpga-toolchain-oss:latest \
 #       --build-arg AMD_IMAGE=containers.zubax.com/zubax-fpga-toolchain-amd:latest \
 #       --build-arg LATTICE_IMAGE=containers.zubax.com/zubax-fpga-toolchain-lattice:latest \
+#       --build-arg INTEL_IMAGE=containers.zubax.com/zubax-fpga-toolchain-intel:latest \
 #       -f mega/Dockerfile -t containers.zubax.com/zubax-fpga-toolchain-mega:latest mega
 
 ARG OSS_IMAGE=ghcr.io/zubax/zubax-fpga-toolchain-oss:latest
 ARG AMD_IMAGE=containers.zubax.com/zubax-fpga-toolchain-amd:latest
 ARG LATTICE_IMAGE=containers.zubax.com/zubax-fpga-toolchain-lattice:latest
+ARG INTEL_IMAGE=containers.zubax.com/zubax-fpga-toolchain-intel:latest
 
 FROM ${AMD_IMAGE} AS amd
 FROM ${LATTICE_IMAGE} AS lattice
+FROM ${INTEL_IMAGE} AS intel
 FROM ${OSS_IMAGE}
 
 ARG DIAMOND_VERSION=3.14
 ARG DEBIAN_FRONTEND=noninteractive
 
 LABEL org.opencontainers.image.title="zubax-fpga-toolchain-mega"
-LABEL org.opencontainers.image.description="Zubax FPGA mega toolchain with open-source tools, AMD Vivado, and Lattice Diamond."
+LABEL org.opencontainers.image.description="Zubax FPGA mega toolchain with open-source tools, AMD Vivado, Lattice Diamond, and Altera Quartus Prime Lite."
 
 USER root
 
@@ -32,6 +35,7 @@ COPY --from=lattice /usr/local/diamond/${DIAMOND_VERSION}/ /usr/local/diamond/${
 COPY --from=lattice /usr/local/bin/diamond-env /usr/local/bin/diamond-env
 COPY --from=lattice /usr/local/bin/diamond-tool /usr/local/bin/diamond-tool
 COPY --from=lattice /usr/local/bin/diamond-net-init /usr/local/bin/diamond-net-init
+COPY --from=intel /opt/altera_lite/ /opt/altera_lite/
 COPY mega-entrypoint /usr/local/bin/mega-entrypoint
 
 RUN set -eux; \
@@ -77,6 +81,8 @@ RUN set -eux; \
     HOME=/tmp/mega-root-test test -x "$(command -v pnmainc)"; \
     HOME=/tmp/mega-root-test test -x "$(command -v par)"; \
     HOME=/tmp/mega-root-test test -x "$(command -v diamond)"; \
+    test -x /opt/altera_lite/current/quartus/bin/quartus_sh; \
+    PATH="/opt/altera_lite/current/quartus/bin:${PATH}" quartus_sh --version | grep -q 'Quartus Prime'; \
     yosys -V | grep -q 'Yosys 0.68'; \
     clang-format --version; \
     clang-tidy --version; \
@@ -86,7 +92,9 @@ RUN set -eux; \
 
 ENV XILINX_VIVADO=/opt/Xilinx/current/Vivado \
     XILINXD_LICENSE_FILE=/opt/Xilinx/license/Xilinx.lic \
-    DIAMOND_ROOT=/usr/local/diamond/${DIAMOND_VERSION}
+    DIAMOND_ROOT=/usr/local/diamond/${DIAMOND_VERSION} \
+    QUARTUS_ROOTDIR=/opt/altera_lite/current/quartus \
+    PATH=/opt/altera_lite/current/quartus/bin:/opt/altera_lite/current/quartus/sopc_builder/bin:${PATH}
 
 USER ubuntu
 WORKDIR /home/ubuntu
